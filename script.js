@@ -1,882 +1,940 @@
-// Estado do jogo
+// ===== ROLETA PROFISSIONAL COM GIRO MELHORADO =====
+
+// Estados da máquina de estados da roleta
+const ESTADOS_ROLETA = {
+    IDLE: 'idle',
+    SPINNING: 'spinning',
+    STOPPING: 'stopping',
+    STOPPED: 'stopped'
+};
+
+// Estado do jogo com gerenciamento robusto
 let gameState = {
-    usuario: null,
-    saldo: 0,
-    girosGratis: 0,
-    girosUsados: 0,
-    primeiroDeposito: false,
-    roletaGirando: false,
-    timeoutGiro: null,
+    // Estado da roleta
+    estadoRoleta: ESTADOS_ROLETA.IDLE,
     anguloAtual: 0,
-    animacaoId: null,
     velocidadeAtual: 0,
-    faseGiro: 'parado', // 'acelerando', 'continuo', 'desacelerando', 'parado'
-    tempoInicioGiro: 0,
-    tempoInicioDesaceleracao: 0
+    tempoGiro: 0,
+    
+    // Controles de animação
+    animacaoId: null,
+    
+    // Locks para prevenir ações simultâneas
+    bloqueado: false,
+    podeParar: false
 };
 
 // Elementos DOM
 const elements = {
-    cadastroOverlay: document.getElementById('cadastro-overlay'),
-    cadastroForm: document.getElementById('cadastro-form'),
     btnGirar: document.getElementById('btn-girar'),
     btnParar: document.getElementById('btn-parar'),
     roleta: document.getElementById('roleta'),
-    saldoAtual: document.getElementById('saldo-atual'),
-    girosCount: document.getElementById('giros-count'),
-    girosInfo: document.getElementById('giros-info'),
-    girosTitle: document.getElementById('giros-title'),
-    girosSubtitle: document.getElementById('giros-subtitle'),
+    statusText: document.getElementById('status-text'),
+    velocidadeBar: document.getElementById('velocidade-bar'),
+    resultado: document.getElementById('resultado'),
+    toastContainer: document.getElementById('toast-container'),
+    particlesBg: document.getElementById('particles-bg'),
     roletaContainer: document.getElementById('roleta-gratis-container'),
-    girosGratisInfo: document.getElementById('giros-gratis-info'),
-    girosPremiosInfo: document.getElementById('giros-premios-info'),
-    resultadoModal: document.getElementById('resultado-modal'),
-    resultadoTitulo: document.getElementById('resultado-titulo'),
-    resultadoDescricao: document.getElementById('resultado-descricao'),
-    resultadoIcon: document.getElementById('resultado-icon'),
-    premioValor: document.getElementById('premio-valor'),
-    premioDisplay: document.getElementById('premio-display'),
-    novoSaldo: document.getElementById('novo-saldo'),
-    girosRestantesModal: document.getElementById('giros-restantes-modal'),
-    girosRestantesCount: document.getElementById('giros-restantes-count'),
-    btnContinuar: document.getElementById('btn-continuar'),
-    toastContainer: document.getElementById('toast-container')
+    girosPremiosInfo: document.getElementById('giros-premios-info')
 };
 
-// Configurações da roleta aprimoradas para funcionamento profissional
+// Configurações da roleta
 const roletaConfig = {
     setores: [
-        { premio: 0, texto: '', cor: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', angulo: 0 },
-        { premio: 25, texto: 'R$ 25', cor: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)', angulo: 45 },
-        { premio: 0, texto: '', cor: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', angulo: 90 },
-        { premio: 50, texto: 'R$ 50', cor: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)', angulo: 135 },
-        { premio: 0, texto: '', cor: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', angulo: 180 },
-        { premio: 75, texto: 'R$ 75', cor: 'linear-gradient(135deg, #4ecdc4 0%, #26a69a 100%)', angulo: 225 },
-        { premio: 0, texto: '', cor: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', angulo: 270 },
-        { premio: 0, texto: '', cor: 'linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%)', angulo: 315 }
-    ],
-    anguloSetor: 45, // 360 / 8 setores
-    
-    // Configurações de velocidade aprimoradas (12-20 RPM)
-    velocidadeMinima: 25, // RPM mínima
-    velocidadeMaxima: 40, // RPM máxima
-    velocidadeAlvo: 30,   // RPM alvo para giro contínuo
-    
-    // Tempos das fases (em milissegundos)
-    tempoAceleracao: 2000,    // 2 segundos de aceleração
-    tempoDesaceleracao: 3000, // 3 segundos de desaceleração
-    
-    // Fatores de suavização
-    fatorAceleracao: 0.002,   // Suavidade da aceleração
-    fatorDesaceleracao: 0.98, // Suavidade da desaceleração
-    
-    // Conversão RPM para graus por frame (60 FPS)
-    rpmParaGrausPorFrame: function(rpm) {
-        return (rpm * 360) / (60 * 60); // RPM * 360 graus / (60 FPS * 60 segundos)
+        { premio: 0, texto: 'Vazio', angulo: 0 },
+        { premio: 25, texto: 'R$ 25', angulo: 45 },
+        { premio: 0, texto: 'Vazio', angulo: 90 },
+        { premio: 50, texto: 'R$ 50', angulo: 135 },
+        { premio: 0, texto: 'Vazio', angulo: 180 },
+        { premio: 75, texto: 'R$ 75', angulo: 225 },
+        { premio: 0, texto: 'Vazio', angulo: 270 },
+        { premio: 100, texto: 'R$ 100', angulo: 315 }
+    ]
+};
+
+// ===== SISTEMA DE FÍSICA MELHORADO PARA GIRO FLUIDO =====
+
+class FisicaMelhorada {
+    constructor() {
+        this.reset();
     }
-};
+    
+    reset() {
+        this.angulo = 0;
+        this.velocidade = 0;
+        this.aceleracao = 0;
+        this.tempo = 0;
+        this.fase = 'idle';
+        this.parandoForcado = false;
+        
+        // Configurações melhoradas para giro mais fluido
+        this.tempoAceleracao = 1800; // Reduzido para 1.8s - mais responsivo
+        this.tempoDesaceleracao = 3500; // Reduzido para 3.5s - mais dinâmico
+        this.velocidadeMaxima = 18 + Math.random() * 6; // 18-24 rpm - mais consistente
+        this.velocidadeMinima = 2; // Velocidade inicial mínima
+        
+        // Parâmetros para suavização
+        this.inercia = 0.98; // Fator de inércia para movimento mais natural
+        this.ruido = 0; // Ruído para variação natural
+        this.ultimaVelocidade = 0;
+        
+        this.anguloAlvo = 0;
+    }
 
-// Sons do jogo aprimorados
-const sons = {
-    giro: createAudioContext(),
-    parada: createAudioContext(),
-    vitoria: createAudioContext(),
-    derrota: createAudioContext(),
-    tick: createAudioContext()
-};
+    iniciarGiro() {
+        this.reset();
+        this.fase = 'acelerando';
+        this.velocidade = this.velocidadeMinima;
+        return null;
+    }
 
-// Criar contexto de áudio para sons mais realistas
-function createAudioContext() {
-    return {
-        play: () => {
-            // Placeholder para sons - em produção, usar arquivos de áudio reais
-            console.log('Som reproduzido');
-        },
-        pause: () => {},
-        currentTime: 0,
-        volume: 0.3
-    };
+    pararGiro() {
+        if (this.fase === 'acelerando' || this.fase === 'constante') {
+            this.parandoForcado = true;
+            this.fase = 'desacelerando';
+            this.tempo = 0;
+            
+            // Cálculo mais preciso do setor alvo
+            const anguloAtual = this.angulo % 360;
+            const setorAtual = Math.floor(anguloAtual / 45);
+            
+            // Determinar setor alvo com base na velocidade atual
+            const voltasExtras = Math.max(2, Math.min(6, this.velocidade / 3));
+            const setoresExtras = Math.floor(Math.random() * 3) + 2; // 2-4 setores extras
+            const proximoSetor = (setorAtual + setoresExtras) % 8;
+            
+            this.anguloAlvo = this.angulo + (voltasExtras * 360) + 
+                             (proximoSetor * 45) - (anguloAtual % 360);
+            
+            return proximoSetor;
+        }
+        return null;
+    }
+
+    atualizar(deltaTime) {
+        // Normalizar deltaTime para 60fps
+        const dt = Math.min(deltaTime, 32) / 16.67;
+        this.tempo += deltaTime;
+        
+        // Salvar velocidade anterior para suavização
+        this.ultimaVelocidade = this.velocidade;
+        
+        switch (this.fase) {
+            case 'acelerando':
+                this.atualizarAceleracaoMelhorada(dt);
+                break;
+            case 'constante':
+                this.atualizarConstanteMelhorada(dt);
+                break;
+            case 'desacelerando':
+                this.atualizarDesaceleracaoMelhorada(dt);
+                break;
+        }
+
+        // Aplicar suavização de velocidade para evitar saltos
+        this.velocidade = this.lerp(this.ultimaVelocidade, this.velocidade, 0.15);
+        
+        // Adicionar ruído sutil para movimento mais natural
+        this.ruido = Math.sin(this.tempo * 0.003) * 0.3 + 
+                     Math.cos(this.tempo * 0.007) * 0.2;
+        
+        // Atualizar ângulo com movimento suavizado
+        const velocidadeFinal = this.velocidade + this.ruido;
+        this.angulo += velocidadeFinal * dt * 0.6;
+
+        return {
+            angulo: this.angulo % 360,
+            velocidade: Math.abs(velocidadeFinal),
+            fase: this.fase,
+            completo: this.fase === 'parado'
+        };
+    }
+
+    atualizarAceleracaoMelhorada(dt) {
+        if (this.tempo < this.tempoAceleracao) {
+            const progresso = this.tempo / this.tempoAceleracao;
+            
+            // Curva de aceleração mais suave (ease-out-quart)
+            const curva = 1 - Math.pow(1 - progresso, 4);
+            
+            // Aceleração gradual mais natural
+            const velocidadeAlvo = this.velocidadeMinima + 
+                                 (this.velocidadeMaxima - this.velocidadeMinima) * curva;
+            
+            this.velocidade = velocidadeAlvo;
+        } else {
+            this.fase = 'constante';
+            this.velocidade = this.velocidadeMaxima;
+        }
+    }
+
+    atualizarConstanteMelhorada(dt) {
+        // Variação mais sutil e natural da velocidade
+        const variacao1 = Math.sin(this.tempo * 0.002) * 0.4;
+        const variacao2 = Math.cos(this.tempo * 0.005) * 0.2;
+        const variacao3 = Math.sin(this.tempo * 0.001) * 0.6;
+        
+        this.velocidade = this.velocidadeMaxima + variacao1 + variacao2 + variacao3;
+        
+        // Manter velocidade dentro de limites razoáveis
+        this.velocidade = Math.max(this.velocidadeMaxima * 0.8, 
+                                  Math.min(this.velocidadeMaxima * 1.2, this.velocidade));
+    }
+
+    atualizarDesaceleracaoMelhorada(dt) {
+        if (this.tempo < this.tempoDesaceleracao) {
+            const progresso = this.tempo / this.tempoDesaceleracao;
+            
+            // Curva de desaceleração mais realista (ease-in-out-cubic)
+            const curva = progresso < 0.5 
+                ? 4 * progresso * progresso * progresso
+                : 1 - Math.pow(-2 * progresso + 2, 3) / 2;
+            
+            // Desaceleração suave
+            this.velocidade = this.velocidadeMaxima * (1 - curva);
+            
+            // Convergência para ângulo alvo mais precisa
+            if (progresso > 0.5) {
+                const fatorConvergencia = (progresso - 0.5) / 0.5;
+                const convergencia = this.easeInOutQuart(fatorConvergencia);
+                
+                const diferenca = this.anguloAlvo - this.angulo;
+                const ajuste = diferenca * convergencia * 0.008; // Reduzido para movimento mais suave
+                
+                this.angulo += ajuste;
+            }
+        } else {
+            this.fase = 'parado';
+            this.velocidade = 0;
+            this.angulo = this.anguloAlvo;
+        }
+    }
+
+    // Funções de easing melhoradas
+    lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+
+    easeOutQuart(t) {
+        return 1 - Math.pow(1 - t, 4);
+    }
+
+    easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    easeInOutQuart(t) {
+        return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+    }
 }
+
+// ===== SISTEMA DE ÁUDIO MELHORADO =====
+
+class AudioSystemMelhorado {
+    constructor() {
+        this.context = null;
+        this.masterGain = null;
+        this.volume = 0.25; // Volume reduzido para ser menos intrusivo
+        this.muted = false;
+        this.init();
+    }
+    
+    async init() {
+        try {
+            this.context = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.context.createGain();
+            this.masterGain.connect(this.context.destination);
+            this.masterGain.gain.value = this.volume;
+        } catch (e) {
+            console.log('❌ Áudio não suportado:', e);
+        }
+    }
+    
+    play(type, velocidade = 1) {
+        if (!this.context || this.muted) return;
+        
+        const agora = this.context.currentTime;
+        
+        switch (type) {
+            case 'giroInicio':
+                this.playGiroInicio(agora);
+                break;
+            case 'giroLoop':
+                this.playGiroLoop(agora, velocidade);
+                break;
+            case 'parada':
+                this.playParada(agora);
+                break;
+            case 'vitoria':
+                this.playVitoria(agora);
+                break;
+        }
+    }
+    
+    playGiroInicio(agora) {
+        const oscillator = this.context.createOscillator();
+        const gainNode = this.context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        oscillator.frequency.setValueAtTime(220, agora);
+        oscillator.frequency.exponentialRampToValueAtTime(440, agora + 0.3);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.08, agora);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.6);
+        
+        oscillator.start(agora);
+        oscillator.stop(agora + 0.6);
+    }
+    
+    playGiroLoop(agora, velocidade) {
+        // Som sutil durante o giro baseado na velocidade
+        if (Math.random() < 0.1) { // 10% de chance por frame
+            const oscillator = this.context.createOscillator();
+            const gainNode = this.context.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.masterGain);
+            
+            const freq = 150 + (velocidade * 5);
+            oscillator.frequency.value = freq;
+            oscillator.type = 'triangle';
+            
+            const volume = Math.min(0.03, velocidade * 0.002);
+            gainNode.gain.setValueAtTime(volume, agora);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.1);
+            
+            oscillator.start(agora);
+            oscillator.stop(agora + 0.1);
+        }
+    }
+    
+    playParada(agora) {
+        const oscillator = this.context.createOscillator();
+        const gainNode = this.context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        oscillator.frequency.setValueAtTime(440, agora);
+        oscillator.frequency.exponentialRampToValueAtTime(220, agora + 1.2);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.06, agora);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 1.2);
+        
+        oscillator.start(agora);
+        oscillator.stop(agora + 1.2);
+    }
+    
+    playVitoria(agora) {
+        // Sequência melódica mais elaborada para vitória
+        const notas = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+        
+        notas.forEach((freq, i) => {
+            const osc = this.context.createOscillator();
+            const gain = this.context.createGain();
+            
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+            
+            const startTime = agora + i * 0.2;
+            gain.gain.setValueAtTime(0.04, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+            
+            osc.start(startTime);
+            osc.stop(startTime + 0.3);
+        });
+    }
+}
+
+// ===== SISTEMA DE EFEITOS VISUAIS MELHORADO =====
+
+class EfeitosVisuaisMelhorados {
+    constructor() {
+        this.ultimaVelocidade = 0;
+        this.transicaoSuave = 0.1;
+    }
+    
+    aplicarEfeitosVelocidade(velocidade) {
+        if (!elements.roleta) return;
+        
+        // Suavizar mudanças de velocidade para efeitos visuais
+        this.ultimaVelocidade = this.lerp(this.ultimaVelocidade, velocidade, this.transicaoSuave);
+        
+        const velocidadeNormalizada = Math.min(1, this.ultimaVelocidade / 25);
+        
+        // Motion blur mais sutil e realista
+        const blur = velocidadeNormalizada * 1.2;
+        
+        // Brilho mais sutil
+        const brilho = 1 + (velocidadeNormalizada * 0.15);
+        
+        // Saturação dinâmica
+        const saturacao = 1 + (velocidadeNormalizada * 0.2);
+        
+        // Aplicar efeitos com transição suave
+        elements.roleta.style.filter = `blur(${blur}px) brightness(${brilho}) saturate(${saturacao})`;
+        
+        // Adicionar sombra dinâmica
+        const sombra = velocidadeNormalizada * 20;
+        elements.roleta.style.boxShadow = `0 0 ${sombra}px rgba(255, 215, 0, ${velocidadeNormalizada * 0.3})`;
+    }
+    
+    criarParticulasGiro() {
+        if (!elements.particlesBg) return;
+        
+        // Reduzir frequência de partículas para melhor performance
+        for (let i = 0; i < 1; i++) {
+            const particula = document.createElement('div');
+            const tamanho = Math.random() * 3 + 1.5;
+            const cores = [
+                'rgba(255, 215, 0, 0.4)',
+                'rgba(255, 107, 107, 0.3)',
+                'rgba(76, 205, 196, 0.3)',
+                'rgba(138, 43, 226, 0.25)'
+            ];
+            
+            particula.style.cssText = `
+                position: absolute;
+                width: ${tamanho}px;
+                height: ${tamanho}px;
+                background: ${cores[Math.floor(Math.random() * cores.length)]};
+                border-radius: 50%;
+                pointer-events: none;
+                left: ${Math.random() * 100}%;
+                top: ${Math.random() * 100}%;
+                animation: particleGiroSuave 1.5s ease-out forwards;
+                will-change: transform, opacity;
+            `;
+            
+            elements.particlesBg.appendChild(particula);
+            
+            setTimeout(() => {
+                if (particula.parentNode) {
+                    particula.parentNode.removeChild(particula);
+                }
+            }, 1500);
+        }
+    }
+    
+    criarConfetes() {
+        if (!elements.particlesBg) return;
+        
+        for (let i = 0; i < 30; i++) { // Reduzido de 50 para 30
+            const confete = document.createElement('div');
+            const cores = ['#ffd700', '#ff6b6b', '#4ecdc4', '#9b59b6', '#ff9f43'];
+            
+            confete.style.cssText = `
+                position: absolute;
+                width: ${Math.random() * 6 + 3}px;
+                height: ${Math.random() * 6 + 3}px;
+                background: ${cores[Math.floor(Math.random() * cores.length)]};
+                left: ${Math.random() * 100}%;
+                top: -10px;
+                pointer-events: none;
+                animation: confeteFallSuave ${1.5 + Math.random() * 2}s ease-out forwards;
+                animation-delay: ${Math.random() * 1.5}s;
+                will-change: transform;
+            `;
+            
+            elements.particlesBg.appendChild(confete);
+        }
+        
+        setTimeout(() => {
+            const confetes = elements.particlesBg.querySelectorAll('div');
+            confetes.forEach(confete => {
+                if (confete.style.animation.includes('confeteFallSuave')) {
+                    confete.remove();
+                }
+            });
+        }, 4000);
+    }
+    
+    limparEfeitos() {
+        if (elements.roleta) {
+            elements.roleta.style.filter = '';
+            elements.roleta.style.boxShadow = '';
+        }
+    }
+    
+    lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+}
+
+// ===== INSTÂNCIAS DOS SISTEMAS MELHORADOS =====
+const fisica = new FisicaMelhorada();
+const audioSystem = new AudioSystemMelhorado();
+const efeitos = new EfeitosVisuaisMelhorados();
+
+// ===== FUNÇÕES PRINCIPAIS MELHORADAS =====
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('App iniciado - Versão Profissional Aprimorada');
+    console.log('🎰 RoletaWin Giro Melhorado - Iniciando...');
+    
+    // Adicionar CSS para animações melhoradas
+    adicionarCSSMelhorado();
     
     setTimeout(() => {
-        carregarEstadoJogo();
         inicializarEventListeners();
-        atualizarInterface();
         criarParticulas();
-        inicializarEfeitosVisuais();
-        
-        // Garantir estado inicial correto dos botões
-        if (elements.btnGirar && elements.btnParar) {
-            elements.btnGirar.classList.remove('hidden');
-            elements.btnParar.classList.add('hidden');
-            console.log('Estado inicial dos botões configurado');
-        }
+        console.log('🚀 Sistema melhorado inicializado!');
     }, 100);
 });
 
-// Carregar estado do jogo do localStorage
-function carregarEstadoJogo() {
-    const estadoSalvo = localStorage.getItem('roletaUser');
-    if (estadoSalvo) {
-        gameState = { ...gameState, ...JSON.parse(estadoSalvo) };
-        console.log('Estado carregado:', gameState);
-    }
-}
-
-// Salvar estado do jogo no localStorage
-function salvarEstadoJogo() {
-    const estadoParaSalvar = { ...gameState };
-    delete estadoParaSalvar.roletaGirando;
-    delete estadoParaSalvar.timeoutGiro;
-    delete estadoParaSalvar.anguloAtual;
-    delete estadoParaSalvar.animacaoId;
-    delete estadoParaSalvar.velocidadeAtual;
-    delete estadoParaSalvar.faseGiro;
-    delete estadoParaSalvar.tempoInicioGiro;
-    delete estadoParaSalvar.tempoInicioDesaceleracao;
-    localStorage.setItem('roletaUser', JSON.stringify(estadoParaSalvar));
+// Adicionar CSS melhorado
+function adicionarCSSMelhorado() {
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes particleGiroSuave {
+            0% {
+                transform: translateY(0) scale(0) rotate(0deg);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-50px) scale(1) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes confeteFallSuave {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        /* Melhorar transições da roleta */
+        #roleta {
+            transition: filter 0.3s ease, box-shadow 0.3s ease;
+            will-change: transform;
+        }
+        
+        /* Otimizar performance */
+        .toast {
+            will-change: transform;
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 // Inicializar event listeners
 function inicializarEventListeners() {
     if (!elements.btnGirar || !elements.btnParar) {
-        console.error('Elementos de botão não encontrados');
+        console.error('❌ Elementos de botão não encontrados');
         return;
     }
     
-    // Botões de controle da roleta
-    elements.btnGirar.addEventListener('click', handleGirarClick);
-    elements.btnParar.addEventListener('click', handlePararClick);
+    elements.btnGirar.addEventListener('click', (e) => {
+        criarEfeitoRipple(e, elements.btnGirar);
+        handleGirarClick();
+    });
     
-    // Garantir que o botão parar esteja inicialmente oculto
-    elements.btnParar.classList.add('hidden');
+    elements.btnParar.addEventListener('click', (e) => {
+        criarEfeitoRipple(e, elements.btnParar);
+        handlePararClick();
+    });
     
-    // Formulário de cadastro
-    if (elements.cadastroForm) {
-        elements.cadastroForm.addEventListener('submit', handleCadastro);
-    }
-    
-    // Botão continuar do modal de resultado
-    if (elements.btnContinuar) {
-        elements.btnContinuar.addEventListener('click', fecharModalResultado);
-    }
-    
-    // Fechar modal clicando no backdrop
-    if (elements.cadastroOverlay) {
-        elements.cadastroOverlay.addEventListener('click', function(e) {
-            if (e.target === elements.cadastroOverlay) {
-                fecharModalCadastro();
+    // Eventos de teclado
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !gameState.bloqueado) {
+            e.preventDefault();
+            if (gameState.estadoRoleta === ESTADOS_ROLETA.IDLE) {
+                handleGirarClick();
+            } else if (gameState.estadoRoleta === ESTADOS_ROLETA.SPINNING) {
+                handlePararClick();
             }
-        });
-    }
-    
-    if (elements.resultadoModal) {
-        elements.resultadoModal.addEventListener('click', function(e) {
-            if (e.target === elements.resultadoModal) {
-                fecharModalResultado();
-            }
-        });
-    }
-    
-    // Botões das mesas pagas
-    document.querySelectorAll('.mesa-card[data-valor]').forEach(mesa => {
-        const btnJogar = mesa.querySelector('.btn-jogar');
-        if (btnJogar) {
-            btnJogar.addEventListener('click', () => {
-                const valor = parseInt(mesa.dataset.valor);
-                jogarMesaPaga(valor);
-            });
         }
     });
 }
 
 // Handle click no botão girar
 function handleGirarClick() {
-    if (gameState.roletaGirando) return;
-    
-    if (!gameState.usuario) {
-        mostrarModalCadastro();
-    } else if (gameState.girosGratis > 0) {
-        iniciarGiroAprimorado();
-    } else {
-        mostrarToast('Você não tem mais giros grátis disponíveis!', 'warning');
+    if (gameState.bloqueado || gameState.estadoRoleta !== ESTADOS_ROLETA.IDLE) {
+        return;
     }
+    
+    iniciarGiroMelhorado();
 }
 
 // Handle click no botão parar
 function handlePararClick() {
-    if (!gameState.roletaGirando || gameState.faseGiro !== 'continuo') return;
-    
-    console.log('Usuário solicitou parada da roleta');
-    iniciarDesaceleracao();
-}
-
-// Handle cadastro
-function handleCadastro(e) {
-    e.preventDefault();
-    
-    const nome = document.getElementById('nome').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const senha = document.getElementById('senha').value.trim();
-    
-    if (!nome || !email || !senha) {
-        mostrarToast('Por favor, preencha todos os campos!', 'error');
+    if (gameState.bloqueado || gameState.estadoRoleta !== ESTADOS_ROLETA.SPINNING) {
         return;
     }
     
-    // Simular cadastro
-    gameState.usuario = {
-        nome: nome,
-        email: email
-    };
-    gameState.girosGratis = 3;
-    gameState.girosUsados = 0;
-    
-    salvarEstadoJogo();
-    fecharModalCadastro();
-    atualizarInterface();
-    
-    mostrarToast(`Bem-vindo, ${nome}! Você recebeu 3 giros grátis!`, 'success');
+    pararGiroMelhorado();
 }
 
-// Mostrar modal de cadastro
-function mostrarModalCadastro() {
-    elements.cadastroOverlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-// Fechar modal de cadastro
-function fecharModalCadastro() {
-    elements.cadastroOverlay.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
-
-// ===== SISTEMA DE GIRO APRIMORADO =====
-
-// INICIAR GIRO APRIMORADO - Giro indefinido até o usuário parar
-function iniciarGiroAprimorado() {
-    if (gameState.girosGratis <= 0 || gameState.roletaGirando) {
-        return;
-    }
+// ===== FUNÇÃO PRINCIPAL: INICIAR GIRO MELHORADO =====
+function iniciarGiroMelhorado() {
+    if (gameState.bloqueado) return;
     
-    console.log('🎮 Iniciando giro aprimorado - Sistema profissional');
+    console.log('🎯 Iniciando giro melhorado');
     
-    // Marcar como girando e definir fase inicial
-    gameState.roletaGirando = true;
-    gameState.faseGiro = 'acelerando';
-    gameState.tempoInicioGiro = Date.now();
-    gameState.velocidadeAtual = 0;
+    // Bloquear ações e definir estado
+    gameState.bloqueado = true;
+    gameState.estadoRoleta = ESTADOS_ROLETA.SPINNING;
+    gameState.tempoGiro = 0;
+    gameState.podeParar = false;
     
-    // Atualizar interface dos botões
+    // Resetar física
+    fisica.reset();
+    fisica.angulo = gameState.anguloAtual;
+    fisica.iniciarGiro();
+    
+    // Atualizar interface
     trocarBotoes(true);
     
-    // Adicionar classes para animação dinâmica
-    adicionarClassesGiro();
+    // Efeitos
+    audioSystem.play('giroInicio');
     
-    // Tocar som de giro
-    sons.giro.play();
+    // Iniciar loop de animação melhorado
+    iniciarLoopAnimacaoMelhorado();
     
-    // Iniciar animação de giro com física realista
-    iniciarAnimacaoGiro();
-    
-    mostrarToast('🎯 Roleta girando! Clique em PARAR quando quiser parar.', 'info');
+    mostrarToast('A roleta está girando com movimento melhorado! Clique em PARAR quando quiser parar.', 'info');
 }
 
-// ANIMAÇÃO PRINCIPAL DO GIRO - Controla todas as fases
-function iniciarAnimacaoGiro() {
-    function animarFrame() {
-        if (!gameState.roletaGirando) return;
-        
-        const tempoAtual = Date.now();
-        const tempoDecorrido = tempoAtual - gameState.tempoInicioGiro;
-        
-        // Determinar fase atual e aplicar lógica correspondente
-        switch (gameState.faseGiro) {
-            case 'acelerando':
-                processarFaseAceleracao(tempoDecorrido);
-                break;
-            case 'continuo':
-                processarFaseContinua();
-                break;
-            case 'desacelerando':
-                processarFaseDesaceleracao(tempoAtual);
-                break;
+// ===== LOOP DE ANIMAÇÃO MELHORADO =====
+function iniciarLoopAnimacaoMelhorado() {
+    let ultimoTempo = performance.now(); // Usar performance.now() para maior precisão
+    
+    function loop(tempoAtual) {
+        if (gameState.estadoRoleta === ESTADOS_ROLETA.STOPPED) {
+            return; // Parar loop
         }
         
-        // Atualizar ângulo da roleta
-        gameState.anguloAtual += gameState.velocidadeAtual;
-        gameState.anguloAtual %= 360;
+        const deltaTime = tempoAtual - ultimoTempo;
+        ultimoTempo = tempoAtual;
         
-        // Aplicar rotação suave
-        elements.roleta.style.transform = `rotate(${gameState.anguloAtual}deg)`;
+        // Atualizar tempo de giro
+        gameState.tempoGiro += deltaTime;
+        
+        // Atualizar física
+        const estadoFisica = fisica.atualizar(deltaTime);
+        
+        // Atualizar estado do jogo
+        gameState.anguloAtual = estadoFisica.angulo;
+        gameState.velocidadeAtual = estadoFisica.velocidade;
+        
+        // Aplicar rotação com transform otimizado
+        if (elements.roleta) {
+            elements.roleta.style.transform = `rotate(${gameState.anguloAtual}deg)`;
+        }
         
         // Efeitos visuais baseados na velocidade
-        aplicarEfeitosVisuais();
+        efeitos.aplicarEfeitosVelocidade(gameState.velocidadeAtual);
         
-        // Continuar animação se ainda estiver girando
-        if (gameState.roletaGirando) {
-            gameState.animacaoId = requestAnimationFrame(animarFrame);
+        // Atualizar indicadores
+        atualizarIndicadores(estadoFisica);
+        
+        // Som durante o giro
+        audioSystem.play('giroLoop', gameState.velocidadeAtual);
+        
+        // Criar partículas durante o giro (menos frequente)
+        if (gameState.velocidadeAtual > 10 && Math.random() < 0.15) {
+            efeitos.criarParticulasGiro();
         }
+        
+        // Habilitar botão parar após aceleração
+        if (estadoFisica.fase === 'constante' && !gameState.podeParar) {
+            gameState.podeParar = true;
+            elements.btnParar.disabled = false;
+        }
+        
+        // Verificar se terminou
+        if (estadoFisica.completo) {
+            finalizarGiroMelhorado();
+            return;
+        }
+        
+        // Continuar loop
+        gameState.animacaoId = requestAnimationFrame(loop);
     }
     
-    animarFrame();
+    gameState.animacaoId = requestAnimationFrame(loop);
 }
 
-// FASE 1: ACELERAÇÃO (2 segundos)
-function processarFaseAceleracao(tempoDecorrido) {
-    const progressoAceleracao = Math.min(tempoDecorrido / roletaConfig.tempoAceleracao, 1);
-    
-    // Curva de aceleração suave (ease-out)
-    const fatorSuavizacao = 1 - Math.pow(1 - progressoAceleracao, 3);
-    
-    // Calcular velocidade atual baseada no progresso
-    const velocidadeRPM = roletaConfig.velocidadeAlvo * fatorSuavizacao;
-    gameState.velocidadeAtual = roletaConfig.rpmParaGrausPorFrame(velocidadeRPM);
-    
-    // Verificar se aceleração terminou
-    if (progressoAceleracao >= 1) {
-        gameState.faseGiro = 'continuo';
-        
-        // Habilitar botão PARAR após aceleração completa
-        elements.btnParar.disabled = false;
-        elements.btnParar.style.opacity = '1';
-        
-        console.log('✅ Aceleração completa - Botão PARAR ativo');
-        mostrarToast('✋ Agora você pode clicar em PARAR!', 'success');
-    }
-}
-
-// FASE 2: GIRO CONTÍNUO (velocidade constante)
-function processarFaseContinua() {
-    // Manter velocidade constante com pequenas variações naturais
-    const variacao = (Math.random() - 0.5) * 0.1; // Variação mínima para realismo
-    const velocidadeBase = roletaConfig.rpmParaGrausPorFrame(roletaConfig.velocidadeAlvo);
-    
-    gameState.velocidadeAtual = velocidadeBase + variacao;
-    
-    // Garantir que a velocidade permaneça dentro dos limites
-    const velocidadeMinima = roletaConfig.rpmParaGrausPorFrame(roletaConfig.velocidadeMinima);
-    const velocidadeMaxima = roletaConfig.rpmParaGrausPorFrame(roletaConfig.velocidadeMaxima);
-    
-    gameState.velocidadeAtual = Math.max(velocidadeMinima, 
-        Math.min(gameState.velocidadeAtual, velocidadeMaxima));
-}
-
-// INICIAR DESACELERAÇÃO (quando usuário clica PARAR)
-function iniciarDesaceleracao() {
-    if (gameState.faseGiro !== 'continuo') return;
-    
-    console.log('🛑 Iniciando desaceleração controlada pelo usuário');
-    
-    gameState.faseGiro = 'desacelerando';
-    gameState.tempoInicioDesaceleracao = Date.now();
-    
-    // Desabilitar botão PARAR
-    elements.btnParar.disabled = true;
-    elements.btnParar.style.opacity = '0.6';
-    
-    // Determinar prêmio e posição final
-    const { anguloFinal, premioGanho } = calcularResultadoFinal();
-    gameState.anguloFinalAlvo = anguloFinal;
-    gameState.premioFinal = premioGanho;
-    
-    mostrarToast('🎯 Parando a roleta...', 'info');
-}
-
-// FASE 3: DESACELERAÇÃO (3 segundos)
-function processarFaseDesaceleracao(tempoAtual) {
-    const tempoDecorrido = tempoAtual - gameState.tempoInicioDesaceleracao;
-    const progressoDesaceleracao = Math.min(tempoDecorrido / roletaConfig.tempoDesaceleracao, 1);
-    
-    if (progressoDesaceleracao >= 1) {
-        // Desaceleração completa - finalizar giro
-        finalizarGiro();
+// ===== PARAR GIRO MELHORADO =====
+function pararGiroMelhorado() {
+    if (gameState.estadoRoleta !== ESTADOS_ROLETA.SPINNING || !gameState.podeParar) {
         return;
     }
     
-    // Curva de desaceleração suave (ease-in)
-    const fatorSuavizacao = Math.pow(1 - progressoDesaceleracao, 2);
+    console.log('🛑 Parando giro melhorado');
     
-    // Reduzir velocidade gradualmente
-    const velocidadeRPM = roletaConfig.velocidadeAlvo * fatorSuavizacao;
-    gameState.velocidadeAtual = roletaConfig.rpmParaGrausPorFrame(velocidadeRPM);
+    gameState.estadoRoleta = ESTADOS_ROLETA.STOPPING;
     
-    // Ajustar para atingir posição final
-    ajustarParaPosicaoFinal(progressoDesaceleracao);
+    // Iniciar desaceleração
+    const setorAlvo = fisica.pararGiro();
+    gameState.setorAlvo = setorAlvo;
+    
+    // Atualizar interface
+    elements.btnParar.disabled = true;
+    
+    mostrarToast('Comando de parada recebido! A roleta está desacelerando suavemente...', 'warning');
 }
 
-// CALCULAR RESULTADO FINAL
-function calcularResultadoFinal() {
-    let setorEscolhido;
+// ===== FINALIZAR GIRO MELHORADO =====
+function finalizarGiroMelhorado() {
+    console.log('🏁 Finalizando giro melhorado');
     
-    // Lógica de negócio para prêmios
-    let premioGarantido = null;
-    if (gameState.girosUsados === 1) { // Segunda rodada
-        premioGarantido = 75; // Garantir R$ 75,00 na segunda rodada
-    }
+    // Atualizar estado
+    gameState.estadoRoleta = ESTADOS_ROLETA.STOPPED;
+    gameState.bloqueado = false;
     
-    if (premioGarantido !== null) {
-        // Encontrar setor com o prêmio garantido
-        setorEscolhido = roletaConfig.setores.findIndex(setor => setor.premio === premioGarantido);
-        if (setorEscolhido === -1) {
-            setorEscolhido = Math.floor(Math.random() * roletaConfig.setores.length);
-        }
-    } else {
-        // Probabilidade realista para outras rodadas
-        const setoresVazios = [0, 2, 4, 6, 7]; // Índices dos setores vazios
-        const setoresPremio = [1, 3, 5]; // Índices dos setores com prêmio
-        
-        // 70% chance de cair em setor vazio, 30% chance de prêmio
-        if (Math.random() < 0.7) {
-            setorEscolhido = setoresVazios[Math.floor(Math.random() * setoresVazios.length)];
-        } else {
-            setorEscolhido = setoresPremio[Math.floor(Math.random() * setoresPremio.length)];
-        }
-    }
-    
-    // Calcular ângulo final preciso
-    const anguloSetor = setorEscolhido * roletaConfig.anguloSetor;
-    const anguloAleatorioNoSetor = Math.random() * roletaConfig.anguloSetor;
-    const voltasAdicionais = Math.floor(Math.random() * 3 + 2) * 360; // 2-4 voltas adicionais
-    
-    // Ajustar para que o ponteiro aponte para o centro do setor
-    const ajustePonteiro = roletaConfig.anguloSetor / 2;
-    const anguloFinal = gameState.anguloAtual + voltasAdicionais + anguloSetor + anguloAleatorioNoSetor + ajustePonteiro;
-    
-    const premioGanho = roletaConfig.setores[setorEscolhido].premio;
-    
-    console.log(`🎯 Resultado: Setor ${setorEscolhido}, Prêmio: R$ ${premioGanho}, Ângulo final: ${anguloFinal.toFixed(2)}°`);
-    
-    return { anguloFinal, premioGanho };
-}
-
-// AJUSTAR PARA POSIÇÃO FINAL
-function ajustarParaPosicaoFinal(progresso) {
-    // Nos últimos 20% da desaceleração, ajustar suavemente para a posição final
-    if (progresso > 0.8) {
-        const anguloRestante = gameState.anguloFinalAlvo - gameState.anguloAtual;
-        const ajuste = anguloRestante * 0.05; // Ajuste suave
-        gameState.velocidadeAtual += ajuste;
-    }
-}
-
-// FINALIZAR GIRO
-function finalizarGiro() {
-    console.log('🏁 Finalizando giro aprimorado');
-    
-    // Parar animação
-    gameState.roletaGirando = false;
-    gameState.faseGiro = 'parado';
-    
+    // Limpar animações
     if (gameState.animacaoId) {
         cancelAnimationFrame(gameState.animacaoId);
         gameState.animacaoId = null;
     }
     
-    // Posicionar exatamente no ângulo final
-    gameState.anguloAtual = gameState.anguloFinalAlvo % 360;
-    elements.roleta.style.transform = `rotate(${gameState.anguloAtual}deg)`;
-    
-    // Restaurar interface
-    trocarBotoes(false);
-    removerClassesGiro();
-    elements.roleta.classList.remove('girando');
-    elements.roleta.style.filter = 'none';
-    
-    // Atualizar estado do jogo
-    const premioGanho = gameState.premioFinal;
-    gameState.girosGratis--;
-    gameState.girosUsados++;
-    gameState.saldo += premioGanho;
-    
-    // Salvar estado
-    salvarEstadoJogo();
-    atualizarInterface();
-    
-    // Mostrar resultado com delay dramático
+    // Limpar efeitos visuais gradualmente
     setTimeout(() => {
-        if (premioGanho > 0) {
-            criarConfetes();
-            sons.vitoria.play();
-        } else {
-            sons.derrota.play();
-        }
-        
-        mostrarModalResultado(premioGanho);
+        efeitos.limparEfeitos();
     }, 500);
-}
-
-// ===== FUNÇÕES DE INTERFACE =====
-
-// Trocar botões com animação suave
-function trocarBotoes(girando) {
-    if (elements.btnGirar && elements.btnParar) {
-        if (girando) {
-            elements.btnGirar.style.opacity = '0';
-            elements.btnGirar.style.transform = 'scale(0.8)';
-            
-            setTimeout(() => {
-                elements.btnGirar.classList.add('hidden');
-                elements.btnParar.classList.remove('hidden');
-                elements.btnParar.style.opacity = '0.6'; // Inicialmente desabilitado
-                elements.btnParar.style.transform = 'scale(0.8)';
-                elements.btnParar.disabled = true; // Desabilitado durante aceleração
-                
-                setTimeout(() => {
-                    elements.btnParar.style.transform = 'scale(1)';
-                }, 50);
-            }, 200);
-        } else {
-            elements.btnParar.style.opacity = '0';
-            elements.btnParar.style.transform = 'scale(0.8)';
-            
-            setTimeout(() => {
-                elements.btnParar.classList.add('hidden');
-                elements.btnParar.disabled = false; // Resetar estado
-                elements.btnGirar.classList.remove('hidden');
-                elements.btnGirar.style.opacity = '0';
-                elements.btnGirar.style.transform = 'scale(0.8)';
-                
-                setTimeout(() => {
-                    elements.btnGirar.style.opacity = '1';
-                    elements.btnGirar.style.transform = 'scale(1)';
-                }, 50);
-            }, 200);
+    
+    // Resetar indicadores
+    if (elements.velocidadeBar) {
+        elements.velocidadeBar.style.width = '0%';
+    }
+    
+    // Som de parada
+    audioSystem.play('parada');
+    
+    // Calcular resultado final
+    const anguloFinal = (360 - (gameState.anguloAtual % 360)) % 360;
+    const setorIndex = Math.floor(anguloFinal / 45);
+    const setorResultado = roletaConfig.setores[setorIndex];
+    
+    gameState.velocidadeAtual = 0;
+    
+    // Resetar estado da roleta
+    gameState.estadoRoleta = ESTADOS_ROLETA.IDLE;
+    
+    // Mostrar resultado com delay
+    setTimeout(() => {
+        if (setorResultado.premio > 0) {
+            efeitos.criarConfetes();
+            audioSystem.play('vitoria');
         }
-    }
+        
+        mostrarResultado(setorResultado);
+        
+        // Resetar para próximo giro
+        setTimeout(() => {
+            trocarBotoes(false);
+            elements.statusText.textContent = 'Pronto para girar com movimento melhorado!';
+        }, 3000);
+    }, 800);
 }
 
-// Adicionar classes de giro com transições suaves
-function adicionarClassesGiro() {
-    const roletaContainer = document.querySelector('.mesa-roleta-display');
-    const roletaWrapper = document.querySelector('.roleta-premium-wrapper');
-    const premiosInfo = elements.girosPremiosInfo;
-    
-    if (roletaContainer) {
-        roletaContainer.classList.add('girando');
-    }
-    if (roletaWrapper) {
-        roletaWrapper.classList.add('girando');
-    }
-    if (premiosInfo) {
-        premiosInfo.classList.add('hidden');
-    }
-}
+// ===== FUNÇÕES DE INTERFACE MELHORADAS =====
 
-// Remover classes de giro
-function removerClassesGiro() {
-    const roletaContainer = document.querySelector('.mesa-roleta-display');
-    const roletaWrapper = document.querySelector('.roleta-premium-wrapper');
-    const premiosInfo = elements.girosPremiosInfo;
+// Trocar botões
+function trocarBotoes(girando) {
+    if (!elements.btnGirar || !elements.btnParar) return;
     
-    if (roletaContainer) {
-        roletaContainer.classList.remove('girando');
-    }
-    if (roletaWrapper) {
-        roletaWrapper.classList.remove('girando');
-    }
-    if (premiosInfo) {
-        premiosInfo.classList.remove('hidden');
-    }
-}
-
-// Aplicar efeitos visuais baseados na velocidade
-function aplicarEfeitosVisuais() {
-    const velocidadeRPM = (gameState.velocidadeAtual * 60 * 60) / 360;
-    const intensidade = Math.min(velocidadeRPM / roletaConfig.velocidadeMaxima, 1);
-    
-    // Efeito de brilho baseado na velocidade
-    const brilho = 1 + (intensidade * 0.3);
-    const saturacao = 1 + (intensidade * 0.2);
-    elements.roleta.style.filter = `brightness(${brilho}) saturate(${saturacao})`;
-    
-    // Efeito sonoro de tick baseado na velocidade (throttled)
-    if (Math.random() < intensidade * 0.1) {
-        sons.tick.play();
-    }
-}
-
-// Mostrar modal de resultado
-function mostrarModalResultado(premioGanho) {
-    // Configurar conteúdo do modal
-    if (premioGanho > 0) {
-        elements.resultadoTitulo.textContent = 'Parabéns!';
-        elements.resultadoDescricao.textContent = 'Você ganhou um prêmio!';
-        elements.resultadoIcon.innerHTML = '<i class="fas fa-trophy"></i>';
-        elements.resultadoIcon.style.background = 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)';
+    if (girando) {
+        elements.btnGirar.classList.add('hidden');
+        elements.btnParar.classList.remove('hidden');
+        elements.btnParar.disabled = true; // Será habilitado após aceleração
     } else {
-        elements.resultadoTitulo.textContent = 'Que pena!';
-        elements.resultadoDescricao.textContent = 'Não foi desta vez, mas continue tentando!';
-        elements.resultadoIcon.innerHTML = '<i class="fas fa-heart-broken"></i>';
-        elements.resultadoIcon.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)';
-    }
-    
-    // Atualizar valores
-    elements.premioValor.textContent = `R$ ${premioGanho.toFixed(2).replace('.', ',')}`;
-    elements.novoSaldo.textContent = gameState.saldo.toFixed(2).replace('.', ',');
-    elements.girosRestantesCount.textContent = gameState.girosGratis;
-    
-    if (gameState.girosGratis > 0) {
-        elements.girosRestantesModal.style.display = 'flex';
-    } else {
-        elements.girosRestantesModal.style.display = 'none';
-    }
-    
-    // Mostrar modal
-    elements.resultadoModal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-
-// Fechar modal de resultado
-function fecharModalResultado() {
-    elements.resultadoModal.classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
-
-// Atualizar interface
-function atualizarInterface() {
-    // Atualizar saldo
-    elements.saldoAtual.textContent = gameState.saldo.toFixed(2).replace('.', ',');
-    
-    if (gameState.usuario && gameState.girosGratis > 0) {
-        // Usuário logado com giros grátis
-        elements.girosCount.textContent = gameState.girosGratis;
-        elements.girosInfo.style.display = 'block';
-        elements.roletaContainer.style.display = 'block';
-        elements.girosPremiosInfo.style.display = 'block';
-        elements.btnGirar.style.display = 'block';
-        
-        // Manter título e subtítulo originais
-        elements.girosTitle.textContent = '3 Giros Grátis';
-        elements.girosSubtitle.textContent = 'Cadastre-se e ganhe até R$ 75,00!';
-        
-    } else if (gameState.usuario && gameState.girosGratis === 0) {
-        // Usuário logado sem giros grátis
-        elements.girosInfo.style.display = 'none';
-        elements.roletaContainer.style.display = 'none';
-        elements.girosPremiosInfo.style.display = 'none';
-        elements.btnGirar.style.display = 'none';
-        elements.btnParar.style.display = 'none';
-        
-        // Alterar para estado "sem giros grátis"
-        elements.girosTitle.textContent = 'Sem mais giros grátis';
-        elements.girosSubtitle.textContent = 'Experimente nossas mesas com apostas abaixo!';
-        
-    } else {
-        // Usuário não logado
-        elements.girosInfo.style.display = 'none';
-        elements.roletaContainer.style.display = 'block';
-        elements.girosPremiosInfo.style.display = 'block';
-        elements.btnGirar.style.display = 'block';
-        elements.btnParar.style.display = 'none';
-        
-        // Manter título e subtítulo originais
-        elements.girosTitle.textContent = '3 Giros Grátis';
-        elements.girosSubtitle.textContent = 'Cadastre-se e ganhe até R$ 75,00!';
+        elements.btnParar.classList.add('hidden');
+        elements.btnGirar.classList.remove('hidden');
     }
 }
 
-// Jogar mesa paga
-function jogarMesaPaga(valor) {
-    if (gameState.saldo < valor) {
-        mostrarToast('Saldo insuficiente! Faça um depósito.', 'warning');
-        return;
+// Atualizar indicadores melhorados
+function atualizarIndicadores(estadoFisica) {
+    // Atualizar status
+    let statusText = '';
+    const tempoMinutos = Math.floor(gameState.tempoGiro / 60000);
+    const tempoSegundos = Math.floor((gameState.tempoGiro % 60000) / 1000);
+    const tempoFormatado = `${tempoMinutos}:${tempoSegundos.toString().padStart(2, '0')}`;
+    
+    switch (estadoFisica.fase) {
+        case 'acelerando':
+            statusText = `Acelerando suavemente... ${estadoFisica.velocidade.toFixed(1)} rpm`;
+            break;
+        case 'constante':
+            statusText = `Girando fluidamente... ${estadoFisica.velocidade.toFixed(1)} rpm (${tempoFormatado})`;
+            break;
+        case 'desacelerando':
+            statusText = `Parando com precisão... ${estadoFisica.velocidade.toFixed(1)} rpm`;
+            break;
     }
     
-    mostrarToast(`Mesa R$ ${valor},00 em desenvolvimento!`, 'info');
+    if (elements.statusText) {
+        elements.statusText.textContent = statusText;
+    }
+    
+    // Atualizar barra de velocidade com animação suave
+    if (elements.velocidadeBar) {
+        const porcentagem = (estadoFisica.velocidade / 25) * 100;
+        elements.velocidadeBar.style.width = `${Math.min(100, porcentagem)}%`;
+        
+        // Cor dinâmica baseada na velocidade
+        const hue = Math.min(120, (estadoFisica.velocidade / 25) * 120);
+        elements.velocidadeBar.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+    }
 }
 
-// Mostrar toast notification aprimorado
+// Mostrar resultado melhorado
+function mostrarResultado(setor) {
+    const isWin = setor.premio > 0;
+    
+    elements.resultado.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">
+                ${isWin ? '🎉' : '😔'}
+            </div>
+            <div style="font-size: 2rem; margin-bottom: 10px; color: ${isWin ? '#ffd700' : '#ff6b6b'};">
+                ${setor.texto}
+            </div>
+            <div style="font-size: 1.2rem; opacity: 0.9;">
+                ${isWin ? 'Parabéns! Você ganhou com o giro melhorado!' : 'Tente novamente com o novo sistema!'}
+            </div>
+        </div>
+    `;
+    
+    elements.resultado.classList.add('show');
+    
+    setTimeout(() => {
+        elements.resultado.classList.remove('show');
+    }, 5000);
+}
+
+// ===== FUNÇÕES AUXILIARES MELHORADAS =====
+
+// Criar efeito ripple melhorado
+function criarEfeitoRipple(event, button) {
+    const ripple = document.createElement('span');
+    const rect = button.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+    
+    ripple.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        left: ${x}px;
+        top: ${y}px;
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        transform: scale(0);
+        animation: rippleMelhorado 0.5s ease-out;
+        pointer-events: none;
+        will-change: transform;
+    `;
+    
+    // Adicionar animação CSS se não existir
+    if (!document.querySelector('#ripple-style')) {
+        const style = document.createElement('style');
+        style.id = 'ripple-style';
+        style.textContent = `
+            @keyframes rippleMelhorado {
+                to {
+                    transform: scale(2);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    button.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 500);
+}
+
+// Toast notifications melhoradas
 function mostrarToast(mensagem, tipo = 'info') {
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = mensagem;
     
-    // Aplicar estilo baseado no tipo
-    switch (tipo) {
-        case 'success':
-            toast.style.background = 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)';
-            toast.style.color = '#0a0e27';
-            break;
-        case 'error':
-            toast.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)';
-            toast.style.color = '#ffffff';
-            break;
-        case 'warning':
-            toast.style.background = 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)';
-            toast.style.color = '#0a0e27';
-            break;
-        default:
-            toast.style.background = 'linear-gradient(135deg, #4ecdc4 0%, #26a69a 100%)';
-            toast.style.color = '#ffffff';
-    }
+    const estilos = {
+        success: 'linear-gradient(135deg, #00ff88 0%, #00cc6a 100%)',
+        error: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)',
+        warning: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+        info: 'linear-gradient(135deg, #4ecdc4 0%, #26a69a 100%)'
+    };
     
-    // Estilo do toast aprimorado
-    Object.assign(toast.style, {
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        padding: '1rem 1.5rem',
-        borderRadius: '12px',
-        fontWeight: '600',
-        fontSize: '0.9rem',
-        zIndex: '10000',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-        transform: 'translateX(100%)',
-        transition: 'all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
-    });
+    toast.style.background = estilos[tipo] || estilos.info;
+    toast.style.color = tipo === 'warning' ? '#0a0e27' : '#ffffff';
+    toast.style.willChange = 'transform';
     
     elements.toastContainer.appendChild(toast);
     
-    // Animar entrada
-    setTimeout(() => {
-        toast.style.transform = 'translateX(0)';
-    }, 100);
-    
-    // Remover após 4 segundos
+    setTimeout(() => toast.style.transform = 'translateX(0)', 100);
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 400);
-    }, 4000);
+        setTimeout(() => toast.remove(), 300);
+    }, 3500);
 }
 
-// Criar efeito de confetes aprimorado
-function criarConfetes() {
-    const container = document.querySelector('.confetti-container');
-    if (!container) return;
-    
-    // Limpar confetes existentes
-    container.innerHTML = '';
-    
-    const cores = ['#ffd700', '#ff6b6b', '#4ecdc4', '#8a2be2', '#00ff88', '#ff9f43', '#ff6b9d'];
-    const formas = ['circle', 'square', 'triangle'];
-    
-    for (let i = 0; i < 80; i++) {
-        const confete = document.createElement('div');
-        const forma = formas[Math.floor(Math.random() * formas.length)];
-        const cor = cores[Math.floor(Math.random() * cores.length)];
-        const tamanho = Math.random() * 8 + 4;
-        
-        Object.assign(confete.style, {
-            position: 'absolute',
-            width: `${tamanho}px`,
-            height: `${tamanho}px`,
-            backgroundColor: cor,
-            left: Math.random() * 100 + '%',
-            top: '-20px',
-            zIndex: '9999',
-            pointerEvents: 'none'
-        });
-        
-        // Aplicar forma
-        if (forma === 'circle') {
-            confete.style.borderRadius = '50%';
-        } else if (forma === 'triangle') {
-            confete.style.width = '0';
-            confete.style.height = '0';
-            confete.style.backgroundColor = 'transparent';
-            confete.style.borderLeft = `${tamanho/2}px solid transparent`;
-            confete.style.borderRight = `${tamanho/2}px solid transparent`;
-            confete.style.borderBottom = `${tamanho}px solid ${cor}`;
-        }
-        
-        // Animação personalizada
-        const duracao = 2 + Math.random() * 4;
-        const rotacao = Math.random() * 720 + 360;
-        const deslocamentoX = (Math.random() - 0.5) * 200;
-        
-        confete.style.animation = `confettiFallAprimorado ${duracao}s linear forwards`;
-        confete.style.setProperty('--rotacao', `${rotacao}deg`);
-        confete.style.setProperty('--deslocamento-x', `${deslocamentoX}px`);
-        
-        container.appendChild(confete);
-    }
-    
-    // Adicionar animação CSS aprimorada se não existir
-    if (!document.querySelector('#confetti-animation-aprimorada')) {
-        const style = document.createElement('style');
-        style.id = 'confetti-animation-aprimorada';
-        style.textContent = `
-            @keyframes confettiFallAprimorado {
-                0% {
-                    transform: translateY(0) translateX(0) rotate(0deg) scale(1);
-                    opacity: 1;
-                }
-                10% {
-                    opacity: 1;
-                }
-                90% {
-                    opacity: 0.7;
-                }
-                100% {
-                    transform: translateY(100vh) translateX(var(--deslocamento-x)) rotate(var(--rotacao)) scale(0.5);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// Criar partículas de fundo aprimoradas
+// Criar partículas de fundo melhoradas
 function criarParticulas() {
-    const particlesContainer = document.getElementById('particles-bg');
-    if (!particlesContainer) return;
+    if (!elements.particlesBg) return;
     
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 20; i++) { // Reduzido de 25 para 20
         const particula = document.createElement('div');
-        const tamanho = Math.random() * 6 + 2;
-        const cor = Math.random() > 0.5 ? 'rgba(255, 215, 0, 0.4)' : 'rgba(138, 43, 226, 0.3)';
+        const tamanho = Math.random() * 4 + 1.5;
+        const cores = [
+            'rgba(255, 215, 0, 0.25)',
+            'rgba(138, 43, 226, 0.15)',
+            'rgba(255, 105, 180, 0.15)',
+            'rgba(76, 205, 196, 0.15)'
+        ];
         
-        Object.assign(particula.style, {
-            position: 'absolute',
-            width: `${tamanho}px`,
-            height: `${tamanho}px`,
-            backgroundColor: cor,
-            borderRadius: '50%',
-            left: Math.random() * 100 + '%',
-            top: Math.random() * 100 + '%',
-            pointerEvents: 'none',
-            filter: 'blur(1px)'
-        });
+        particula.style.cssText = `
+            position: absolute;
+            width: ${tamanho}px;
+            height: ${tamanho}px;
+            background: ${cores[Math.floor(Math.random() * cores.length)]};
+            border-radius: 50%;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            pointer-events: none;
+            filter: blur(0.5px);
+            animation: particleFloatSuave ${25 + Math.random() * 20}s linear infinite;
+            animation-delay: ${Math.random() * 10}s;
+            will-change: transform;
+        `;
         
-        const duracao = 15 + Math.random() * 25;
-        const delay = Math.random() * 10;
-        particula.style.animation = `particleFloatAprimorado ${duracao}s linear infinite`;
-        particula.style.animationDelay = `${delay}s`;
-        
-        particlesContainer.appendChild(particula);
+        elements.particlesBg.appendChild(particula);
     }
     
-    // Adicionar animação CSS aprimorada se não existir
-    if (!document.querySelector('#particle-animation-aprimorada')) {
+    // Adicionar CSS para animação de partículas se não existir
+    if (!document.querySelector('#particle-style')) {
         const style = document.createElement('style');
-        style.id = 'particle-animation-aprimorada';
+        style.id = 'particle-style';
         style.textContent = `
-            @keyframes particleFloatAprimorado {
+            @keyframes particleFloatSuave {
                 0% {
-                    transform: translateY(0px) translateX(0px) rotate(0deg) scale(0);
-                    opacity: 0;
+                    transform: translateY(0) rotate(0deg);
+                    opacity: 0.3;
                 }
-                5% {
-                    opacity: 1;
-                    transform: translateY(-10px) translateX(5px) rotate(45deg) scale(1);
-                }
-                95% {
-                    opacity: 0.8;
+                50% {
+                    opacity: 0.6;
                 }
                 100% {
-                    transform: translateY(-100vh) translateX(100px) rotate(360deg) scale(0);
+                    transform: translateY(-100vh) rotate(360deg);
                     opacity: 0;
                 }
             }
@@ -885,74 +943,5 @@ function criarParticulas() {
     }
 }
 
-// Inicializar efeitos visuais aprimorados
-function inicializarEfeitosVisuais() {
-    // Efeito de hover nos setores da roleta
-    const setores = document.querySelectorAll('.setor');
-    setores.forEach((setor, index) => {
-        setor.addEventListener('mouseenter', () => {
-            if (!gameState.roletaGirando) {
-                setor.style.transform += ' scale(1.05)';
-                setor.style.zIndex = '10';
-            }
-        });
-        
-        setor.addEventListener('mouseleave', () => {
-            if (!gameState.roletaGirando) {
-                setor.style.transform = setor.style.transform.replace(' scale(1.05)', '');
-                setor.style.zIndex = 'auto';
-            }
-        });
-    });
-    
-    // Efeito de pulsação no centro da roleta
-    const centro = document.querySelector('.roleta-center');
-    if (centro) {
-        setInterval(() => {
-            if (!gameState.roletaGirando) {
-                centro.style.transform += ' scale(1.1)';
-                setTimeout(() => {
-                    centro.style.transform = centro.style.transform.replace(' scale(1.1)', '');
-                }, 200);
-            }
-        }, 3000);
-    }
-}
-
-// Função para resetar o jogo (para testes)
-function resetarJogo() {
-    gameState = {
-        usuario: null,
-        saldo: 0,
-        girosGratis: 0,
-        girosUsados: 0,
-        primeiroDeposito: false,
-        roletaGirando: false,
-        timeoutGiro: null,
-        anguloAtual: 0,
-        animacaoId: null,
-        velocidadeAtual: 0,
-        faseGiro: 'parado',
-        tempoInicioGiro: 0,
-        tempoInicioDesaceleracao: 0
-    };
-    localStorage.removeItem('roletaUser');
-    atualizarInterface();
-    location.reload();
-}
-
-// Expor funções para console (desenvolvimento)
-window.resetarJogo = resetarJogo;
-window.gameState = gameState;
-window.roletaConfig = roletaConfig;
-
-console.log('🎮 Sistema de roleta aprimorado carregado com sucesso!');
-console.log('📋 Características implementadas:');
-console.log('   ✅ Giro indefinido até o usuário parar');
-console.log('   ✅ Controle total do usuário');
-console.log('   ✅ Velocidade constante (12-20 RPM)');
-console.log('   ✅ Aceleração suave (2s)');
-console.log('   ✅ Desaceleração controlada (3s)');
-console.log('   ✅ Física realista e movimento fluido');
-console.log('   ✅ Botão inteligente (ativo após aceleração)');
+console.log('🎰 RoletaWin Giro Melhorado carregada com sucesso!');
 
