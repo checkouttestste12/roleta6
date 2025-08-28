@@ -1,4 +1,4 @@
-// ===== ROLETA PROFISSIONAL COM GIRO MELHORADO =====
+// ===== ROLETA PROFISSIONAL COM GIRO MELHORADO - 4 SETORES =====
 
 // Estados da máquina de estados da roleta
 const ESTADOS_ROLETA = {
@@ -34,25 +34,20 @@ const elements = {
     resultado: document.getElementById('resultado'),
     toastContainer: document.getElementById('toast-container'),
     particlesBg: document.getElementById('particles-bg'),
-    roletaContainer: document.getElementById('roleta-gratis-container'),
-    girosPremiosInfo: document.getElementById('giros-premios-info')
+    roletaContainer: document.getElementById('roleta-gratis-container')
 };
 
-// Configurações da roleta
+// Configurações da roleta - SIMPLIFICADA PARA 4 SETORES
 const roletaConfig = {
     setores: [
-        { premio: 0, texto: 'Vazio', angulo: 0 },
-        { premio: 25, texto: 'R$ 25', angulo: 45 },
-        { premio: 0, texto: 'Vazio', angulo: 90 },
-        { premio: 50, texto: 'R$ 50', angulo: 135 },
-        { premio: 0, texto: 'Vazio', angulo: 180 },
-        { premio: 75, texto: 'R$ 75', angulo: 225 },
-        { premio: 0, texto: 'Vazio', angulo: 270 },
-        { premio: 100, texto: 'R$ 100', angulo: 315 }
+        { premio: 25, cor: '#ff6b6b', angulo: 0 },    // Vermelho
+        { premio: 50, cor: '#4ecdc4', angulo: 90 },   // Azul
+        { premio: 75, cor: '#ffd700', angulo: 180 },  // Dourado
+        { premio: 100, cor: '#9b59b6', angulo: 270 }  // Roxo
     ]
 };
 
-// ===== SISTEMA DE FÍSICA MELHORADO PARA GIRO FLUIDO =====
+// ===== SISTEMA DE FÍSICA MELHORADO PARA GIRO ULTRA FLUIDO =====
 
 class FisicaMelhorada {
     constructor() {
@@ -67,18 +62,20 @@ class FisicaMelhorada {
         this.fase = 'idle';
         this.parandoForcado = false;
         
-        // Configurações melhoradas para giro mais fluido
-        this.tempoAceleracao = 1800; // Reduzido para 1.8s - mais responsivo
-        this.tempoDesaceleracao = 3500; // Reduzido para 3.5s - mais dinâmico
-        this.velocidadeMaxima = 18 + Math.random() * 6; // 18-24 rpm - mais consistente
-        this.velocidadeMinima = 2; // Velocidade inicial mínima
+        // Configurações otimizadas para movimento ultra fluido
+        this.tempoAceleracao = 1200; // 1.2s - mais rápido e responsivo
+        this.tempoDesaceleracao = 2800; // 2.8s - desaceleração mais natural
+        this.velocidadeMaxima = 20 + Math.random() * 8; // 20-28 rpm - mais consistente
+        this.velocidadeMinima = 3; // Velocidade inicial
         
-        // Parâmetros para suavização
-        this.inercia = 0.98; // Fator de inércia para movimento mais natural
-        this.ruido = 0; // Ruído para variação natural
+        // Parâmetros para suavização ultra fluida
+        this.inercia = 0.95; // Inércia otimizada
+        this.ruido = 0;
         this.ultimaVelocidade = 0;
+        this.suavizacao = 0.08; // Fator de suavização mais agressivo
         
         this.anguloAlvo = 0;
+        this.frameCount = 0;
     }
 
     iniciarGiro() {
@@ -94,17 +91,17 @@ class FisicaMelhorada {
             this.fase = 'desacelerando';
             this.tempo = 0;
             
-            // Cálculo mais preciso do setor alvo
+            // Cálculo mais preciso do setor alvo (4 setores = 90° cada)
             const anguloAtual = this.angulo % 360;
-            const setorAtual = Math.floor(anguloAtual / 45);
+            const setorAtual = Math.floor(anguloAtual / 90);
             
             // Determinar setor alvo com base na velocidade atual
-            const voltasExtras = Math.max(2, Math.min(6, this.velocidade / 3));
-            const setoresExtras = Math.floor(Math.random() * 3) + 2; // 2-4 setores extras
-            const proximoSetor = (setorAtual + setoresExtras) % 8;
+            const voltasExtras = Math.max(3, Math.min(7, this.velocidade / 4));
+            const setoresExtras = Math.floor(Math.random() * 2) + 2; // 2-3 setores extras
+            const proximoSetor = (setorAtual + setoresExtras) % 4;
             
             this.anguloAlvo = this.angulo + (voltasExtras * 360) + 
-                             (proximoSetor * 45) - (anguloAtual % 360);
+                             (proximoSetor * 90) - (anguloAtual % 360);
             
             return proximoSetor;
         }
@@ -112,35 +109,36 @@ class FisicaMelhorada {
     }
 
     atualizar(deltaTime) {
-        // Normalizar deltaTime para 60fps
-        const dt = Math.min(deltaTime, 32) / 16.67;
+        // Normalizar deltaTime para 60fps com maior precisão
+        const dt = Math.min(deltaTime, 20) / 16.67;
         this.tempo += deltaTime;
+        this.frameCount++;
         
-        // Salvar velocidade anterior para suavização
+        // Salvar velocidade anterior para suavização ultra fluida
         this.ultimaVelocidade = this.velocidade;
         
         switch (this.fase) {
             case 'acelerando':
-                this.atualizarAceleracaoMelhorada(dt);
+                this.atualizarAceleracaoUltraFluida(dt);
                 break;
             case 'constante':
-                this.atualizarConstanteMelhorada(dt);
+                this.atualizarConstanteUltraFluida(dt);
                 break;
             case 'desacelerando':
-                this.atualizarDesaceleracaoMelhorada(dt);
+                this.atualizarDesaceleracaoUltraFluida(dt);
                 break;
         }
 
-        // Aplicar suavização de velocidade para evitar saltos
-        this.velocidade = this.lerp(this.ultimaVelocidade, this.velocidade, 0.15);
+        // Aplicar suavização ultra fluida para eliminar qualquer jitter
+        this.velocidade = this.lerp(this.ultimaVelocidade, this.velocidade, this.suavizacao);
         
-        // Adicionar ruído sutil para movimento mais natural
-        this.ruido = Math.sin(this.tempo * 0.003) * 0.3 + 
-                     Math.cos(this.tempo * 0.007) * 0.2;
+        // Ruído mais sutil e natural
+        this.ruido = Math.sin(this.tempo * 0.002) * 0.15 + 
+                     Math.cos(this.tempo * 0.005) * 0.1;
         
-        // Atualizar ângulo com movimento suavizado
+        // Atualizar ângulo com movimento ultra suavizado
         const velocidadeFinal = this.velocidade + this.ruido;
-        this.angulo += velocidadeFinal * dt * 0.6;
+        this.angulo += velocidadeFinal * dt * 0.5;
 
         return {
             angulo: this.angulo % 360,
@@ -150,14 +148,14 @@ class FisicaMelhorada {
         };
     }
 
-    atualizarAceleracaoMelhorada(dt) {
+    atualizarAceleracaoUltraFluida(dt) {
         if (this.tempo < this.tempoAceleracao) {
             const progresso = this.tempo / this.tempoAceleracao;
             
-            // Curva de aceleração mais suave (ease-out-quart)
-            const curva = 1 - Math.pow(1 - progresso, 4);
+            // Curva de aceleração ultra suave (ease-out-expo)
+            const curva = progresso === 1 ? 1 : 1 - Math.pow(2, -10 * progresso);
             
-            // Aceleração gradual mais natural
+            // Aceleração gradual ultra natural
             const velocidadeAlvo = this.velocidadeMinima + 
                                  (this.velocidadeMaxima - this.velocidadeMinima) * curva;
             
@@ -168,38 +166,36 @@ class FisicaMelhorada {
         }
     }
 
-    atualizarConstanteMelhorada(dt) {
-        // Variação mais sutil e natural da velocidade
-        const variacao1 = Math.sin(this.tempo * 0.002) * 0.4;
-        const variacao2 = Math.cos(this.tempo * 0.005) * 0.2;
-        const variacao3 = Math.sin(this.tempo * 0.001) * 0.6;
+    atualizarConstanteUltraFluida(dt) {
+        // Variação ultra sutil para movimento mais natural
+        const variacao1 = Math.sin(this.tempo * 0.0015) * 0.3;
+        const variacao2 = Math.cos(this.tempo * 0.003) * 0.15;
+        const variacao3 = Math.sin(this.tempo * 0.0008) * 0.4;
         
         this.velocidade = this.velocidadeMaxima + variacao1 + variacao2 + variacao3;
         
-        // Manter velocidade dentro de limites razoáveis
-        this.velocidade = Math.max(this.velocidadeMaxima * 0.8, 
-                                  Math.min(this.velocidadeMaxima * 1.2, this.velocidade));
+        // Manter velocidade dentro de limites ultra precisos
+        this.velocidade = Math.max(this.velocidadeMaxima * 0.85, 
+                                  Math.min(this.velocidadeMaxima * 1.15, this.velocidade));
     }
 
-    atualizarDesaceleracaoMelhorada(dt) {
+    atualizarDesaceleracaoUltraFluida(dt) {
         if (this.tempo < this.tempoDesaceleracao) {
             const progresso = this.tempo / this.tempoDesaceleracao;
             
-            // Curva de desaceleração mais realista (ease-in-out-cubic)
-            const curva = progresso < 0.5 
-                ? 4 * progresso * progresso * progresso
-                : 1 - Math.pow(-2 * progresso + 2, 3) / 2;
+            // Curva de desaceleração ultra realista (ease-out-quart)
+            const curva = 1 - Math.pow(1 - progresso, 4);
             
-            // Desaceleração suave
+            // Desaceleração ultra suave
             this.velocidade = this.velocidadeMaxima * (1 - curva);
             
-            // Convergência para ângulo alvo mais precisa
-            if (progresso > 0.5) {
-                const fatorConvergencia = (progresso - 0.5) / 0.5;
-                const convergencia = this.easeInOutQuart(fatorConvergencia);
+            // Convergência para ângulo alvo ultra precisa
+            if (progresso > 0.4) {
+                const fatorConvergencia = (progresso - 0.4) / 0.6;
+                const convergencia = this.easeOutQuart(fatorConvergencia);
                 
                 const diferenca = this.anguloAlvo - this.angulo;
-                const ajuste = diferenca * convergencia * 0.008; // Reduzido para movimento mais suave
+                const ajuste = diferenca * convergencia * 0.006; // Ultra suave
                 
                 this.angulo += ajuste;
             }
@@ -210,7 +206,7 @@ class FisicaMelhorada {
         }
     }
 
-    // Funções de easing melhoradas
+    // Funções de easing ultra suaves
     lerp(a, b, t) {
         return a + (b - a) * t;
     }
@@ -219,12 +215,8 @@ class FisicaMelhorada {
         return 1 - Math.pow(1 - t, 4);
     }
 
-    easeInOutCubic(t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-    }
-
-    easeInOutQuart(t) {
-        return t < 0.5 ? 8 * t * t * t * t : 1 - Math.pow(-2 * t + 2, 4) / 2;
+    easeOutExpo(t) {
+        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
     }
 }
 
@@ -234,7 +226,7 @@ class AudioSystemMelhorado {
     constructor() {
         this.context = null;
         this.masterGain = null;
-        this.volume = 0.25; // Volume reduzido para ser menos intrusivo
+        this.volume = 0.2; // Volume mais baixo
         this.muted = false;
         this.init();
     }
@@ -278,36 +270,36 @@ class AudioSystemMelhorado {
         oscillator.connect(gainNode);
         gainNode.connect(this.masterGain);
         
-        oscillator.frequency.setValueAtTime(220, agora);
-        oscillator.frequency.exponentialRampToValueAtTime(440, agora + 0.3);
+        oscillator.frequency.setValueAtTime(200, agora);
+        oscillator.frequency.exponentialRampToValueAtTime(400, agora + 0.4);
         oscillator.type = 'sine';
         
-        gainNode.gain.setValueAtTime(0.08, agora);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.6);
+        gainNode.gain.setValueAtTime(0.06, agora);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.8);
         
         oscillator.start(agora);
-        oscillator.stop(agora + 0.6);
+        oscillator.stop(agora + 0.8);
     }
     
     playGiroLoop(agora, velocidade) {
-        // Som sutil durante o giro baseado na velocidade
-        if (Math.random() < 0.1) { // 10% de chance por frame
+        // Som ultra sutil durante o giro
+        if (Math.random() < 0.08) { // 8% de chance por frame
             const oscillator = this.context.createOscillator();
             const gainNode = this.context.createGain();
             
             oscillator.connect(gainNode);
             gainNode.connect(this.masterGain);
             
-            const freq = 150 + (velocidade * 5);
+            const freq = 140 + (velocidade * 4);
             oscillator.frequency.value = freq;
             oscillator.type = 'triangle';
             
-            const volume = Math.min(0.03, velocidade * 0.002);
+            const volume = Math.min(0.02, velocidade * 0.001);
             gainNode.gain.setValueAtTime(volume, agora);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 0.08);
             
             oscillator.start(agora);
-            oscillator.stop(agora + 0.1);
+            oscillator.stop(agora + 0.08);
         }
     }
     
@@ -318,19 +310,19 @@ class AudioSystemMelhorado {
         oscillator.connect(gainNode);
         gainNode.connect(this.masterGain);
         
-        oscillator.frequency.setValueAtTime(440, agora);
-        oscillator.frequency.exponentialRampToValueAtTime(220, agora + 1.2);
+        oscillator.frequency.setValueAtTime(400, agora);
+        oscillator.frequency.exponentialRampToValueAtTime(200, agora + 1.5);
         oscillator.type = 'sine';
         
-        gainNode.gain.setValueAtTime(0.06, agora);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 1.2);
+        gainNode.gain.setValueAtTime(0.05, agora);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, agora + 1.5);
         
         oscillator.start(agora);
-        oscillator.stop(agora + 1.2);
+        oscillator.stop(agora + 1.5);
     }
     
     playVitoria(agora) {
-        // Sequência melódica mais elaborada para vitória
+        // Sequência melódica para vitória
         const notas = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
         
         notas.forEach((freq, i) => {
@@ -343,103 +335,106 @@ class AudioSystemMelhorado {
             osc.frequency.value = freq;
             osc.type = 'sine';
             
-            const startTime = agora + i * 0.2;
-            gain.gain.setValueAtTime(0.04, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+            const startTime = agora + i * 0.15;
+            gain.gain.setValueAtTime(0.03, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.25);
             
             osc.start(startTime);
-            osc.stop(startTime + 0.3);
+            osc.stop(startTime + 0.25);
         });
     }
 }
 
-// ===== SISTEMA DE EFEITOS VISUAIS MELHORADO =====
+// ===== SISTEMA DE EFEITOS VISUAIS ULTRA MELHORADO =====
 
-class EfeitosVisuaisMelhorados {
+class EfeitosVisuaisUltraMelhorados {
     constructor() {
         this.ultimaVelocidade = 0;
-        this.transicaoSuave = 0.1;
+        this.transicaoSuave = 0.06; // Transição ultra suave
+        this.particlePool = [];
+        this.maxParticles = 15; // Reduzido para melhor performance
     }
     
     aplicarEfeitosVelocidade(velocidade) {
         if (!elements.roleta) return;
         
-        // Suavizar mudanças de velocidade para efeitos visuais
+        // Suavizar mudanças de velocidade ultra fluidas
         this.ultimaVelocidade = this.lerp(this.ultimaVelocidade, velocidade, this.transicaoSuave);
         
-        const velocidadeNormalizada = Math.min(1, this.ultimaVelocidade / 25);
+        const velocidadeNormalizada = Math.min(1, this.ultimaVelocidade / 28);
         
-        // Motion blur mais sutil e realista
-        const blur = velocidadeNormalizada * 1.2;
+        // Motion blur ultra sutil
+        const blur = velocidadeNormalizada * 0.8;
         
-        // Brilho mais sutil
-        const brilho = 1 + (velocidadeNormalizada * 0.15);
+        // Brilho ultra sutil
+        const brilho = 1 + (velocidadeNormalizada * 0.1);
         
-        // Saturação dinâmica
-        const saturacao = 1 + (velocidadeNormalizada * 0.2);
+        // Saturação dinâmica ultra sutil
+        const saturacao = 1 + (velocidadeNormalizada * 0.15);
         
-        // Aplicar efeitos com transição suave
+        // Aplicar efeitos com transição ultra suave
         elements.roleta.style.filter = `blur(${blur}px) brightness(${brilho}) saturate(${saturacao})`;
         
-        // Adicionar sombra dinâmica
-        const sombra = velocidadeNormalizada * 20;
-        elements.roleta.style.boxShadow = `0 0 ${sombra}px rgba(255, 215, 0, ${velocidadeNormalizada * 0.3})`;
+        // Sombra dinâmica ultra sutil
+        const sombra = velocidadeNormalizada * 15;
+        const opacidadeSombra = velocidadeNormalizada * 0.2;
+        elements.roleta.style.boxShadow = `0 0 ${sombra}px rgba(255, 215, 0, ${opacidadeSombra})`;
     }
     
     criarParticulasGiro() {
-        if (!elements.particlesBg) return;
+        if (!elements.particlesBg || this.particlePool.length >= this.maxParticles) return;
         
-        // Reduzir frequência de partículas para melhor performance
-        for (let i = 0; i < 1; i++) {
-            const particula = document.createElement('div');
-            const tamanho = Math.random() * 3 + 1.5;
-            const cores = [
-                'rgba(255, 215, 0, 0.4)',
-                'rgba(255, 107, 107, 0.3)',
-                'rgba(76, 205, 196, 0.3)',
-                'rgba(138, 43, 226, 0.25)'
-            ];
-            
-            particula.style.cssText = `
-                position: absolute;
-                width: ${tamanho}px;
-                height: ${tamanho}px;
-                background: ${cores[Math.floor(Math.random() * cores.length)]};
-                border-radius: 50%;
-                pointer-events: none;
-                left: ${Math.random() * 100}%;
-                top: ${Math.random() * 100}%;
-                animation: particleGiroSuave 1.5s ease-out forwards;
-                will-change: transform, opacity;
-            `;
-            
-            elements.particlesBg.appendChild(particula);
-            
-            setTimeout(() => {
-                if (particula.parentNode) {
-                    particula.parentNode.removeChild(particula);
-                }
-            }, 1500);
-        }
+        const particula = document.createElement('div');
+        const tamanho = Math.random() * 2.5 + 1;
+        const cores = [
+            'rgba(255, 107, 107, 0.3)', // Vermelho
+            'rgba(76, 205, 196, 0.3)',  // Azul
+            'rgba(255, 215, 0, 0.4)',   // Dourado
+            'rgba(155, 89, 182, 0.3)'   // Roxo
+        ];
+        
+        particula.style.cssText = `
+            position: absolute;
+            width: ${tamanho}px;
+            height: ${tamanho}px;
+            background: ${cores[Math.floor(Math.random() * cores.length)]};
+            border-radius: 50%;
+            pointer-events: none;
+            left: ${Math.random() * 100}%;
+            top: ${Math.random() * 100}%;
+            animation: particleGiroUltraFluido 1.2s ease-out forwards;
+            will-change: transform, opacity;
+        `;
+        
+        elements.particlesBg.appendChild(particula);
+        this.particlePool.push(particula);
+        
+        setTimeout(() => {
+            if (particula.parentNode) {
+                particula.parentNode.removeChild(particula);
+                const index = this.particlePool.indexOf(particula);
+                if (index > -1) this.particlePool.splice(index, 1);
+            }
+        }, 1200);
     }
     
     criarConfetes() {
         if (!elements.particlesBg) return;
         
-        for (let i = 0; i < 30; i++) { // Reduzido de 50 para 30
+        for (let i = 0; i < 25; i++) {
             const confete = document.createElement('div');
-            const cores = ['#ffd700', '#ff6b6b', '#4ecdc4', '#9b59b6', '#ff9f43'];
+            const cores = ['#ff6b6b', '#4ecdc4', '#ffd700', '#9b59b6'];
             
             confete.style.cssText = `
                 position: absolute;
-                width: ${Math.random() * 6 + 3}px;
-                height: ${Math.random() * 6 + 3}px;
+                width: ${Math.random() * 5 + 2}px;
+                height: ${Math.random() * 5 + 2}px;
                 background: ${cores[Math.floor(Math.random() * cores.length)]};
                 left: ${Math.random() * 100}%;
                 top: -10px;
                 pointer-events: none;
-                animation: confeteFallSuave ${1.5 + Math.random() * 2}s ease-out forwards;
-                animation-delay: ${Math.random() * 1.5}s;
+                animation: confeteFallUltraFluido ${1.2 + Math.random() * 1.8}s ease-out forwards;
+                animation-delay: ${Math.random() * 1.2}s;
                 will-change: transform;
             `;
             
@@ -449,11 +444,11 @@ class EfeitosVisuaisMelhorados {
         setTimeout(() => {
             const confetes = elements.particlesBg.querySelectorAll('div');
             confetes.forEach(confete => {
-                if (confete.style.animation.includes('confeteFallSuave')) {
+                if (confete.style.animation.includes('confeteFallUltraFluido')) {
                     confete.remove();
                 }
             });
-        }, 4000);
+        }, 3500);
     }
     
     limparEfeitos() {
@@ -461,6 +456,7 @@ class EfeitosVisuaisMelhorados {
             elements.roleta.style.filter = '';
             elements.roleta.style.boxShadow = '';
         }
+        this.particlePool = [];
     }
     
     lerp(a, b, t) {
@@ -471,43 +467,69 @@ class EfeitosVisuaisMelhorados {
 // ===== INSTÂNCIAS DOS SISTEMAS MELHORADOS =====
 const fisica = new FisicaMelhorada();
 const audioSystem = new AudioSystemMelhorado();
-const efeitos = new EfeitosVisuaisMelhorados();
+const efeitos = new EfeitosVisuaisUltraMelhorados();
 
-// ===== FUNÇÕES PRINCIPAIS MELHORADAS =====
+// ===== FUNÇÕES PRINCIPAIS ULTRA MELHORADAS =====
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🎰 RoletaWin Giro Melhorado - Iniciando...');
+    console.log('🎰 Inicializando RoletaWin Ultra Melhorada...');
     
-    // Adicionar CSS para animações melhoradas
-    adicionarCSSMelhorado();
+    // Verificar elementos essenciais
+    if (!verificarElementos()) {
+        console.error('❌ Elementos essenciais não encontrados');
+        return;
+    }
     
-    setTimeout(() => {
-        inicializarEventListeners();
-        criarParticulas();
-        console.log('🚀 Sistema melhorado inicializado!');
-    }, 100);
+    // Inicializar sistemas
+    inicializarEventListeners();
+    adicionarEstilosUltraMelhorados();
+    criarParticulas();
+    
+    // Estado inicial
+    gameState.estadoRoleta = ESTADOS_ROLETA.IDLE;
+    
+    if (elements.statusText) {
+        elements.statusText.textContent = 'Roleta ultra melhorada pronta! Clique em GIRAR para começar.';
+    }
+    
+    console.log('✅ RoletaWin Ultra Melhorada inicializada com sucesso!');
 });
 
-// Adicionar CSS melhorado
-function adicionarCSSMelhorado() {
+// Verificar elementos DOM
+function verificarElementos() {
+    const elementosEssenciais = ['btnGirar', 'roleta'];
+    
+    for (const elemento of elementosEssenciais) {
+        if (!elements[elemento]) {
+            console.error(`❌ Elemento ${elemento} não encontrado`);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Adicionar estilos CSS ultra melhorados
+function adicionarEstilosUltraMelhorados() {
     const style = document.createElement('style');
     style.textContent = `
-        @keyframes particleGiroSuave {
+        /* Animações ultra fluidas para partículas */
+        @keyframes particleGiroUltraFluido {
             0% {
                 transform: translateY(0) scale(0) rotate(0deg);
                 opacity: 0;
             }
-            20% {
+            15% {
                 opacity: 1;
             }
             100% {
-                transform: translateY(-50px) scale(1) rotate(360deg);
+                transform: translateY(-40px) scale(1.2) rotate(360deg);
                 opacity: 0;
             }
         }
         
-        @keyframes confeteFallSuave {
+        @keyframes confeteFallUltraFluido {
             0% {
                 transform: translateY(0) rotate(0deg);
                 opacity: 1;
@@ -518,15 +540,30 @@ function adicionarCSSMelhorado() {
             }
         }
         
-        /* Melhorar transições da roleta */
+        /* Roleta ultra melhorada */
         #roleta {
-            transition: filter 0.3s ease, box-shadow 0.3s ease;
+            transition: filter 0.2s ease, box-shadow 0.2s ease;
+            will-change: transform;
+            transform-origin: center center;
+        }
+        
+        /* Otimizações de performance ultra */
+        .toast {
             will-change: transform;
         }
         
-        /* Otimizar performance */
-        .toast {
-            will-change: transform;
+        /* Efeitos de hover ultra suaves */
+        .btn-jogar {
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+        
+        .btn-jogar:hover {
+            transform: translateY(-1px) scale(1.02);
+        }
+        
+        /* Indicador de velocidade ultra fluido */
+        #velocidade-bar {
+            transition: width 0.1s ease, background-color 0.2s ease;
         }
     `;
     document.head.appendChild(style);
@@ -544,10 +581,12 @@ function inicializarEventListeners() {
         handleGirarClick();
     });
     
-    elements.btnParar.addEventListener('click', (e) => {
-        criarEfeitoRipple(e, elements.btnParar);
-        handlePararClick();
-    });
+    if (elements.btnParar) {
+        elements.btnParar.addEventListener('click', (e) => {
+            criarEfeitoRipple(e, elements.btnParar);
+            handlePararClick();
+        });
+    }
     
     // Eventos de teclado
     document.addEventListener('keydown', (e) => {
@@ -568,7 +607,7 @@ function handleGirarClick() {
         return;
     }
     
-    iniciarGiroMelhorado();
+    iniciarGiroUltraMelhorado();
 }
 
 // Handle click no botão parar
@@ -577,14 +616,14 @@ function handlePararClick() {
         return;
     }
     
-    pararGiroMelhorado();
+    pararGiroUltraMelhorado();
 }
 
-// ===== FUNÇÃO PRINCIPAL: INICIAR GIRO MELHORADO =====
-function iniciarGiroMelhorado() {
+// ===== FUNÇÃO PRINCIPAL: INICIAR GIRO ULTRA MELHORADO =====
+function iniciarGiroUltraMelhorado() {
     if (gameState.bloqueado) return;
     
-    console.log('🎯 Iniciando giro melhorado');
+    console.log('🎯 Iniciando giro ultra melhorado');
     
     // Bloquear ações e definir estado
     gameState.bloqueado = true;
@@ -603,15 +642,15 @@ function iniciarGiroMelhorado() {
     // Efeitos
     audioSystem.play('giroInicio');
     
-    // Iniciar loop de animação melhorado
-    iniciarLoopAnimacaoMelhorado();
+    // Iniciar loop de animação ultra melhorado
+    iniciarLoopAnimacaoUltraMelhorado();
     
-    mostrarToast('A roleta está girando com movimento melhorado! Clique em PARAR quando quiser parar.', 'info');
+    mostrarToast('Roleta ultra melhorada girando! Movimento fluido e profissional.', 'info');
 }
 
-// ===== LOOP DE ANIMAÇÃO MELHORADO =====
-function iniciarLoopAnimacaoMelhorado() {
-    let ultimoTempo = performance.now(); // Usar performance.now() para maior precisão
+// ===== LOOP DE ANIMAÇÃO ULTRA MELHORADO =====
+function iniciarLoopAnimacaoUltraMelhorado() {
+    let ultimoTempo = performance.now();
     
     function loop(tempoAtual) {
         if (gameState.estadoRoleta === ESTADOS_ROLETA.STOPPED) {
@@ -624,41 +663,43 @@ function iniciarLoopAnimacaoMelhorado() {
         // Atualizar tempo de giro
         gameState.tempoGiro += deltaTime;
         
-        // Atualizar física
+        // Atualizar física ultra melhorada
         const estadoFisica = fisica.atualizar(deltaTime);
         
         // Atualizar estado do jogo
         gameState.anguloAtual = estadoFisica.angulo;
         gameState.velocidadeAtual = estadoFisica.velocidade;
         
-        // Aplicar rotação com transform otimizado
+        // Aplicar rotação com transform ultra otimizado
         if (elements.roleta) {
             elements.roleta.style.transform = `rotate(${gameState.anguloAtual}deg)`;
         }
         
-        // Efeitos visuais baseados na velocidade
+        // Efeitos visuais ultra melhorados
         efeitos.aplicarEfeitosVelocidade(gameState.velocidadeAtual);
         
-        // Atualizar indicadores
-        atualizarIndicadores(estadoFisica);
+        // Atualizar indicadores ultra precisos
+        atualizarIndicadoresUltraMelhorados(estadoFisica);
         
-        // Som durante o giro
+        // Som durante o giro ultra sutil
         audioSystem.play('giroLoop', gameState.velocidadeAtual);
         
-        // Criar partículas durante o giro (menos frequente)
-        if (gameState.velocidadeAtual > 10 && Math.random() < 0.15) {
+        // Criar partículas durante o giro (ultra otimizado)
+        if (gameState.velocidadeAtual > 12 && Math.random() < 0.12) {
             efeitos.criarParticulasGiro();
         }
         
         // Habilitar botão parar após aceleração
         if (estadoFisica.fase === 'constante' && !gameState.podeParar) {
             gameState.podeParar = true;
-            elements.btnParar.disabled = false;
+            if (elements.btnParar) {
+                elements.btnParar.disabled = false;
+            }
         }
         
         // Verificar se terminou
         if (estadoFisica.completo) {
-            finalizarGiroMelhorado();
+            finalizarGiroUltraMelhorado();
             return;
         }
         
@@ -669,29 +710,31 @@ function iniciarLoopAnimacaoMelhorado() {
     gameState.animacaoId = requestAnimationFrame(loop);
 }
 
-// ===== PARAR GIRO MELHORADO =====
-function pararGiroMelhorado() {
+// ===== PARAR GIRO ULTRA MELHORADO =====
+function pararGiroUltraMelhorado() {
     if (gameState.estadoRoleta !== ESTADOS_ROLETA.SPINNING || !gameState.podeParar) {
         return;
     }
     
-    console.log('🛑 Parando giro melhorado');
+    console.log('🛑 Parando giro ultra melhorado');
     
     gameState.estadoRoleta = ESTADOS_ROLETA.STOPPING;
     
-    // Iniciar desaceleração
+    // Iniciar desaceleração ultra suave
     const setorAlvo = fisica.pararGiro();
     gameState.setorAlvo = setorAlvo;
     
     // Atualizar interface
-    elements.btnParar.disabled = true;
+    if (elements.btnParar) {
+        elements.btnParar.disabled = true;
+    }
     
-    mostrarToast('Comando de parada recebido! A roleta está desacelerando suavemente...', 'warning');
+    mostrarToast('Desaceleração ultra suave iniciada! A roleta está parando com precisão...', 'warning');
 }
 
-// ===== FINALIZAR GIRO MELHORADO =====
-function finalizarGiroMelhorado() {
-    console.log('🏁 Finalizando giro melhorado');
+// ===== FINALIZAR GIRO ULTRA MELHORADO =====
+function finalizarGiroUltraMelhorado() {
+    console.log('🏁 Finalizando giro ultra melhorado');
     
     // Atualizar estado
     gameState.estadoRoleta = ESTADOS_ROLETA.STOPPED;
@@ -706,7 +749,7 @@ function finalizarGiroMelhorado() {
     // Limpar efeitos visuais gradualmente
     setTimeout(() => {
         efeitos.limparEfeitos();
-    }, 500);
+    }, 600);
     
     // Resetar indicadores
     if (elements.velocidadeBar) {
@@ -716,9 +759,9 @@ function finalizarGiroMelhorado() {
     // Som de parada
     audioSystem.play('parada');
     
-    // Calcular resultado final
+    // Calcular resultado final (4 setores = 90° cada)
     const anguloFinal = (360 - (gameState.anguloAtual % 360)) % 360;
-    const setorIndex = Math.floor(anguloFinal / 45);
+    const setorIndex = Math.floor(anguloFinal / 90);
     const setorResultado = roletaConfig.setores[setorIndex];
     
     gameState.velocidadeAtual = 0;
@@ -733,34 +776,40 @@ function finalizarGiroMelhorado() {
             audioSystem.play('vitoria');
         }
         
-        mostrarResultado(setorResultado);
+        mostrarResultadoUltraMelhorado(setorResultado);
         
         // Resetar para próximo giro
         setTimeout(() => {
             trocarBotoes(false);
-            elements.statusText.textContent = 'Pronto para girar com movimento melhorado!';
+            if (elements.statusText) {
+                elements.statusText.textContent = 'Roleta ultra melhorada pronta! Movimento fluido e profissional.';
+            }
         }, 3000);
-    }, 800);
+    }, 900);
 }
 
-// ===== FUNÇÕES DE INTERFACE MELHORADAS =====
+// ===== FUNÇÕES DE INTERFACE ULTRA MELHORADAS =====
 
 // Trocar botões
 function trocarBotoes(girando) {
-    if (!elements.btnGirar || !elements.btnParar) return;
+    if (!elements.btnGirar) return;
     
     if (girando) {
         elements.btnGirar.classList.add('hidden');
-        elements.btnParar.classList.remove('hidden');
-        elements.btnParar.disabled = true; // Será habilitado após aceleração
+        if (elements.btnParar) {
+            elements.btnParar.classList.remove('hidden');
+            elements.btnParar.disabled = true; // Será habilitado após aceleração
+        }
     } else {
-        elements.btnParar.classList.add('hidden');
+        if (elements.btnParar) {
+            elements.btnParar.classList.add('hidden');
+        }
         elements.btnGirar.classList.remove('hidden');
     }
 }
 
-// Atualizar indicadores melhorados
-function atualizarIndicadores(estadoFisica) {
+// Atualizar indicadores ultra melhorados
+function atualizarIndicadoresUltraMelhorados(estadoFisica) {
     // Atualizar status
     let statusText = '';
     const tempoMinutos = Math.floor(gameState.tempoGiro / 60000);
@@ -769,13 +818,13 @@ function atualizarIndicadores(estadoFisica) {
     
     switch (estadoFisica.fase) {
         case 'acelerando':
-            statusText = `Acelerando suavemente... ${estadoFisica.velocidade.toFixed(1)} rpm`;
+            statusText = `Aceleração ultra suave... ${estadoFisica.velocidade.toFixed(1)} rpm`;
             break;
         case 'constante':
-            statusText = `Girando fluidamente... ${estadoFisica.velocidade.toFixed(1)} rpm (${tempoFormatado})`;
+            statusText = `Movimento ultra fluido... ${estadoFisica.velocidade.toFixed(1)} rpm (${tempoFormatado})`;
             break;
         case 'desacelerando':
-            statusText = `Parando com precisão... ${estadoFisica.velocidade.toFixed(1)} rpm`;
+            statusText = `Parada ultra precisa... ${estadoFisica.velocidade.toFixed(1)} rpm`;
             break;
     }
     
@@ -783,45 +832,57 @@ function atualizarIndicadores(estadoFisica) {
         elements.statusText.textContent = statusText;
     }
     
-    // Atualizar barra de velocidade com animação suave
+    // Atualizar barra de velocidade ultra suave
     if (elements.velocidadeBar) {
-        const porcentagem = (estadoFisica.velocidade / 25) * 100;
+        const porcentagem = (estadoFisica.velocidade / 28) * 100;
         elements.velocidadeBar.style.width = `${Math.min(100, porcentagem)}%`;
         
-        // Cor dinâmica baseada na velocidade
-        const hue = Math.min(120, (estadoFisica.velocidade / 25) * 120);
-        elements.velocidadeBar.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+        // Cor dinâmica baseada na velocidade (4 cores dos setores)
+        let cor;
+        if (estadoFisica.velocidade < 7) {
+            cor = '#ff6b6b'; // Vermelho
+        } else if (estadoFisica.velocidade < 14) {
+            cor = '#4ecdc4'; // Azul
+        } else if (estadoFisica.velocidade < 21) {
+            cor = '#ffd700'; // Dourado
+        } else {
+            cor = '#9b59b6'; // Roxo
+        }
+        
+        elements.velocidadeBar.style.backgroundColor = cor;
     }
 }
 
-// Mostrar resultado melhorado
-function mostrarResultado(setor) {
+// Mostrar resultado ultra melhorado
+function mostrarResultadoUltraMelhorado(setor) {
     const isWin = setor.premio > 0;
     
-    elements.resultado.innerHTML = `
-        <div style="text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 15px;">
-                ${isWin ? '🎉' : '😔'}
+    if (elements.resultado) {
+        elements.resultado.innerHTML = `
+            <div style="text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 15px;">
+                    ${isWin ? '🎉' : '😔'}
+                </div>
+                <div style="font-size: 2rem; margin-bottom: 10px; color: ${setor.cor};">
+                    R$ ${setor.premio},00
+                </div>
+                <div style="font-size: 1.2rem; opacity: 0.9;">
+                    ${isWin ? 'Parabéns! Movimento ultra fluido e prêmio garantido!' : 'Tente novamente com a roleta ultra melhorada!'}
+                </div>
             </div>
-            <div style="font-size: 2rem; margin-bottom: 10px; color: ${isWin ? '#ffd700' : '#ff6b6b'};">
-                ${setor.texto}
-            </div>
-            <div style="font-size: 1.2rem; opacity: 0.9;">
-                ${isWin ? 'Parabéns! Você ganhou com o giro melhorado!' : 'Tente novamente com o novo sistema!'}
-            </div>
-        </div>
-    `;
-    
-    elements.resultado.classList.add('show');
-    
-    setTimeout(() => {
-        elements.resultado.classList.remove('show');
-    }, 5000);
+        `;
+        
+        elements.resultado.classList.add('show');
+        
+        setTimeout(() => {
+            elements.resultado.classList.remove('show');
+        }, 5000);
+    }
 }
 
-// ===== FUNÇÕES AUXILIARES MELHORADAS =====
+// ===== FUNÇÕES AUXILIARES ULTRA MELHORADAS =====
 
-// Criar efeito ripple melhorado
+// Criar efeito ripple ultra melhorado
 function criarEfeitoRipple(event, button) {
     const ripple = document.createElement('span');
     const rect = button.getBoundingClientRect();
@@ -836,21 +897,21 @@ function criarEfeitoRipple(event, button) {
         top: ${y}px;
         position: absolute;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.2);
         transform: scale(0);
-        animation: rippleMelhorado 0.5s ease-out;
+        animation: rippleUltraMelhorado 0.4s ease-out;
         pointer-events: none;
         will-change: transform;
     `;
     
     // Adicionar animação CSS se não existir
-    if (!document.querySelector('#ripple-style')) {
+    if (!document.querySelector('#ripple-ultra-style')) {
         const style = document.createElement('style');
-        style.id = 'ripple-style';
+        style.id = 'ripple-ultra-style';
         style.textContent = `
-            @keyframes rippleMelhorado {
+            @keyframes rippleUltraMelhorado {
                 to {
-                    transform: scale(2);
+                    transform: scale(2.2);
                     opacity: 0;
                 }
             }
@@ -859,11 +920,13 @@ function criarEfeitoRipple(event, button) {
     }
     
     button.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 500);
+    setTimeout(() => ripple.remove(), 400);
 }
 
-// Toast notifications melhoradas
+// Toast notifications ultra melhoradas
 function mostrarToast(mensagem, tipo = 'info') {
+    if (!elements.toastContainer) return;
+    
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = mensagem;
@@ -885,21 +948,21 @@ function mostrarToast(mensagem, tipo = 'info') {
     setTimeout(() => {
         toast.style.transform = 'translateX(100%)';
         setTimeout(() => toast.remove(), 300);
-    }, 3500);
+    }, 3200);
 }
 
-// Criar partículas de fundo melhoradas
+// Criar partículas de fundo ultra melhoradas
 function criarParticulas() {
     if (!elements.particlesBg) return;
     
-    for (let i = 0; i < 20; i++) { // Reduzido de 25 para 20
+    for (let i = 0; i < 16; i++) { // Reduzido para melhor performance
         const particula = document.createElement('div');
-        const tamanho = Math.random() * 4 + 1.5;
+        const tamanho = Math.random() * 3.5 + 1;
         const cores = [
-            'rgba(255, 215, 0, 0.25)',
-            'rgba(138, 43, 226, 0.15)',
-            'rgba(255, 105, 180, 0.15)',
-            'rgba(76, 205, 196, 0.15)'
+            'rgba(255, 107, 107, 0.2)', // Vermelho
+            'rgba(76, 205, 196, 0.2)',  // Azul
+            'rgba(255, 215, 0, 0.25)',  // Dourado
+            'rgba(155, 89, 182, 0.2)'   // Roxo
         ];
         
         particula.style.cssText = `
@@ -911,9 +974,9 @@ function criarParticulas() {
             left: ${Math.random() * 100}%;
             top: ${Math.random() * 100}%;
             pointer-events: none;
-            filter: blur(0.5px);
-            animation: particleFloatSuave ${25 + Math.random() * 20}s linear infinite;
-            animation-delay: ${Math.random() * 10}s;
+            filter: blur(0.3px);
+            animation: particleFloatUltraFluido ${22 + Math.random() * 18}s linear infinite;
+            animation-delay: ${Math.random() * 8}s;
             will-change: transform;
         `;
         
@@ -921,17 +984,17 @@ function criarParticulas() {
     }
     
     // Adicionar CSS para animação de partículas se não existir
-    if (!document.querySelector('#particle-style')) {
+    if (!document.querySelector('#particle-ultra-style')) {
         const style = document.createElement('style');
-        style.id = 'particle-style';
+        style.id = 'particle-ultra-style';
         style.textContent = `
-            @keyframes particleFloatSuave {
+            @keyframes particleFloatUltraFluido {
                 0% {
                     transform: translateY(0) rotate(0deg);
-                    opacity: 0.3;
+                    opacity: 0.2;
                 }
                 50% {
-                    opacity: 0.6;
+                    opacity: 0.5;
                 }
                 100% {
                     transform: translateY(-100vh) rotate(360deg);
@@ -943,5 +1006,5 @@ function criarParticulas() {
     }
 }
 
-console.log('🎰 RoletaWin Giro Melhorado carregada com sucesso!');
+console.log('🎰 RoletaWin Ultra Melhorada carregada com sucesso! 4 setores, movimento ultra fluido e profissional!');
 
