@@ -58,9 +58,9 @@ const roletaConfig = {
     anguloSetor: 45, // 360 / 8 setores
     
     // Configurações de velocidade aprimoradas (12-20 RPM)
-    velocidadeMinima: 12, // RPM mínima
-    velocidadeMaxima: 20, // RPM máxima
-    velocidadeAlvo: 16,   // RPM alvo para giro contínuo
+    velocidadeMinima: 25, // RPM mínima
+    velocidadeMaxima: 40, // RPM máxima
+    velocidadeAlvo: 30,   // RPM alvo para giro contínuo
     
     // Tempos das fases (em milissegundos)
     tempoAceleracao: 2000,    // 2 segundos de aceleração
